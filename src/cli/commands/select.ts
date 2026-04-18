@@ -1,20 +1,16 @@
-import type { ActiveApiCache } from "../../models/configModels.js";
-import {
-    ensureCacheFolders,
-    writeJsonFile,
-} from "../../utils/fileSystem.js";
-import { getActiveApiCacheFilePath } from "../../utils/paths.js";
+import { setActiveCustomApi } from "../../services/customApiService.js";
 
-export async function runSelectCommand(uniqueName: string): Promise<void> {
-    await ensureCacheFolders();
+export async function runSelectCommand(
+  uniqueName: string,
+  jsonOutput: boolean
+): Promise<void> {
+  const result = await setActiveCustomApi(uniqueName);
 
-    const activeApi: ActiveApiCache = {
-        uniqueName,
-        savedAtUtc: new Date().toISOString(),
-    };
+  if (jsonOutput) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
 
-    const activeApiCacheFilePath = await getActiveApiCacheFilePath();
-    await writeJsonFile(activeApiCacheFilePath, activeApi);
-
-    console.log(`Aktive API gesetzt: ${uniqueName}`);
+  console.log(`Aktive API gesetzt: ${result.uniqueName}`);
+  console.log(`Cache-Datei: ${result.activeApiCacheFilePath}`);
 }

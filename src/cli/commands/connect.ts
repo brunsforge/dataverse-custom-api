@@ -1,36 +1,17 @@
-import { DataverseClient } from "../../api/dataverseClient.js";
-import { loadAuthConfig } from "../../auth/authConfig.js";
-import type { EnvironmentCache } from "../../models/configModels.js";
-import {
-    ensureCacheFolders,
-    writeJsonFile,
-} from "../../utils/fileSystem.js";
-import { getEnvironmentCacheFilePath } from "../../utils/paths.js";
+import { connectToEnvironment } from "../../services/customApiService.js";
 
-export async function runConnectCommand(environmentUrl: string): Promise<void> {
-    await ensureCacheFolders();
+export async function runConnectCommand(
+  environmentUrl: string,
+  jsonOutput: boolean
+): Promise<void> {
+  const result = await connectToEnvironment(environmentUrl);
 
-    const client = new DataverseClient(environmentUrl);
-    await client.whoAmI();
+  if (jsonOutput) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
 
-    const auth = await loadAuthConfig();
-
-    const cache: EnvironmentCache = {
-        environmentUrl,
-        authMode: auth.authMode ?? "deviceCode",
-        savedAtUtc: new Date().toISOString(),
-    };
-
-    if (auth.tenantId) {
-        cache.tenantId = auth.tenantId;
-    }
-
-    if (auth.clientId) {
-        cache.clientId = auth.clientId;
-    }
-
-    const environmentCacheFilePath = await getEnvironmentCacheFilePath();
-    await writeJsonFile(environmentCacheFilePath, cache);
-
-    console.log(`Verbunden und gecacht: ${environmentUrl}`);
+  console.log(`Verbunden und gecacht: ${result.environmentUrl}`);
+  console.log(`Auth-Modus: ${result.authMode}`);
+  console.log(`Cache-Datei: ${result.environmentCacheFilePath}`);
 }

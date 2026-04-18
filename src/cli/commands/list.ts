@@ -1,23 +1,19 @@
-import { DataverseClient } from "../../api/dataverseClient.js";
-import { CustomApiRepository } from "../../api/customApiRepository.js";
-import type { EnvironmentCache } from "../../models/configModels.js";
-import { readJsonFile } from "../../utils/fileSystem.js";
-import { getEnvironmentCacheFilePath } from "../../utils/paths.js";
+import { listCustomApis } from "../../services/customApiService.js";
 
-export async function runListCommand(): Promise<void> {
-    const environmentCacheFilePath = await getEnvironmentCacheFilePath();
-    const env = await readJsonFile<EnvironmentCache>(environmentCacheFilePath);
+export async function runListCommand(jsonOutput: boolean): Promise<void> {
+  const items = await listCustomApis();
 
-    const client = new DataverseClient(env.environmentUrl);
-    const repository = new CustomApiRepository(client);
-    const items = await repository.listCustomApis();
+  if (jsonOutput) {
+    console.log(JSON.stringify(items, null, 2));
+    return;
+  }
 
-    if (items.length === 0) {
-        console.log("Keine Custom APIs gefunden.");
-        return;
-    }
+  if (items.length === 0) {
+    console.log("Keine Custom APIs gefunden.");
+    return;
+  }
 
-    for (const item of items) {
-        console.log(`- ${item.uniqueName}`);
-    }
+  for (const item of items) {
+    console.log(`- ${item.uniqueName}`);
+  }
 }
