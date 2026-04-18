@@ -7,6 +7,7 @@ import type {
   CustomApiDefinitionModel,
   CustomApiSummaryModel,
 } from "../models/customApiModels.js";
+import type { RuntimeContext } from "../models/runtime-context.js";
 import { loadAuthConfig } from "../auth/authConfig.js";
 import { ensureCacheFolders, readJsonFile, writeJsonFile } from "../utils/fileSystem.js";
 import {
@@ -55,14 +56,15 @@ export interface CustomApiDiffResult {
 }
 
 export async function connectToEnvironment(
-  environmentUrl: string
+  environmentUrl: string,
+  context?: RuntimeContext
 ): Promise<ConnectResult> {
-  await ensureCacheFolders();
+  await ensureCacheFolders(context);
 
-  const client = new DataverseClient(environmentUrl);
+  const client = new DataverseClient(environmentUrl, context);
   await client.whoAmI();
 
-  const auth = await loadAuthConfig();
+  const auth = await loadAuthConfig(context);
 
   const cache: EnvironmentCache = {
     environmentUrl,
@@ -78,7 +80,7 @@ export async function connectToEnvironment(
     cache.clientId = auth.clientId;
   }
 
-  const environmentCacheFilePath = await getEnvironmentCacheFilePath();
+  const environmentCacheFilePath = await getEnvironmentCacheFilePath(context);
   await writeJsonFile(environmentCacheFilePath, cache);
 
   return {
@@ -88,27 +90,34 @@ export async function connectToEnvironment(
   };
 }
 
-export async function getCurrentEnvironment(): Promise<EnvironmentCache> {
-  const environmentCacheFilePath = await getEnvironmentCacheFilePath();
+export async function getCurrentEnvironment(
+  context?: RuntimeContext
+): Promise<EnvironmentCache> {
+  const environmentCacheFilePath = await getEnvironmentCacheFilePath(context);
   return readJsonFile<EnvironmentCache>(environmentCacheFilePath);
 }
 
-export async function listCustomApis(): Promise<CustomApiSummaryModel[]> {
-  const env = await getCurrentEnvironment();
-  const client = new DataverseClient(env.environmentUrl);
+export async function listCustomApis(
+  context?: RuntimeContext
+): Promise<CustomApiSummaryModel[]> {
+  const env = await getCurrentEnvironment(context);
+  const client = new DataverseClient(env.environmentUrl, context);
   const repository = new CustomApiRepository(client);
   return repository.listCustomApis();
 }
 
-export async function setActiveCustomApi(uniqueName: string): Promise<SelectResult> {
-  await ensureCacheFolders();
+export async function setActiveCustomApi(
+  uniqueName: string,
+  context?: RuntimeContext
+): Promise<SelectResult> {
+  await ensureCacheFolders(context);
 
   const activeApi: ActiveApiCache = {
     uniqueName,
     savedAtUtc: new Date().toISOString(),
   };
 
-  const activeApiCacheFilePath = await getActiveApiCacheFilePath();
+  const activeApiCacheFilePath = await getActiveApiCacheFilePath(context);
   await writeJsonFile(activeApiCacheFilePath, activeApi);
 
   return {
@@ -117,29 +126,34 @@ export async function setActiveCustomApi(uniqueName: string): Promise<SelectResu
   };
 }
 
-export async function getActiveCustomApiUniqueName(): Promise<string> {
-  const activeApiCacheFilePath = await getActiveApiCacheFilePath();
+export async function getActiveCustomApiUniqueName(
+  context?: RuntimeContext
+): Promise<string> {
+  const activeApiCacheFilePath = await getActiveApiCacheFilePath(context);
   const activeApi = await readJsonFile<ActiveApiCache>(activeApiCacheFilePath);
   return activeApi.uniqueName;
 }
 
-export async function exportCustomApi(uniqueNameArg?: string): Promise<ExportResult> {
-  await ensureCacheFolders();
+export async function exportCustomApi(
+  uniqueNameArg?: string,
+  context?: RuntimeContext
+): Promise<ExportResult> {
+  await ensureCacheFolders(context);
 
-  const env = await getCurrentEnvironment();
-  const uniqueName = uniqueNameArg ?? (await getActiveCustomApiUniqueName());
+  const env = await getCurrentEnvironment(context);
+  const uniqueName = uniqueNameArg ?? (await getActiveCustomApiUniqueName(context));
 
   if (!uniqueName) {
     throw new Error("Keine Custom API angegeben und keine aktive API gesetzt.");
   }
 
-  const client = new DataverseClient(env.environmentUrl);
+  const client = new DataverseClient(env.environmentUrl, context);
   const repository = new CustomApiRepository(client);
   const catalog = await repository.exportCatalog(uniqueName, {
     environmentUrl: env.environmentUrl,
   });
 
-  const outputRoot = await getCustomApiOutputRootPath();
+  const outputRoot = await getCustomApiOutputRootPath(context);
   const filePath = path.join(outputRoot, `${uniqueName}.json`);
   await writeJsonFile(filePath, catalog);
 
@@ -151,15 +165,16 @@ export async function exportCustomApi(uniqueNameArg?: string): Promise<ExportRes
 }
 
 export async function loadLocalCustomApiCatalog(
-  uniqueNameArg?: string
+  uniqueNameArg?: string,
+  context?: RuntimeContext
 ): Promise<CustomApiCatalogModel> {
-  const uniqueName = uniqueNameArg ?? (await getActiveCustomApiUniqueName());
+  const uniqueName = uniqueNameArg ?? (await getActiveCustomApiUniqueName(context));
 
   if (!uniqueName) {
     throw new Error("Keine Custom API angegeben und keine aktive API gesetzt.");
   }
 
-  const outputRoot = await getCustomApiOutputRootPath();
+  const outputRoot = await getCustomApiOutputRootPath(context);
   const filePath = path.join(outputRoot, `${uniqueName}.json`);
   return readJsonFile<CustomApiCatalogModel>(filePath);
 }
@@ -204,10 +219,7 @@ function diffNamedItems<T extends { uniqueName: string }>(
   const localMap = buildItemMap(localItems);
   const remoteMap = buildItemMap(remoteItems);
 
-  const uniqueNames = new Set<string>([
-    ...localMap.keys(),
-    ...remoteMap.keys(),
-  ]);
+  const uniqueNames = new Set<string>([...localMap.keys(), ...remoteMap.keys()]);
 
   for (const uniqueName of uniqueNames) {
     const localItem = localMap.get(uniqueName);
@@ -265,17 +277,18 @@ function diffNamedItems<T extends { uniqueName: string }>(
 }
 
 export async function diffCustomApi(
-  uniqueNameArg?: string
+  uniqueNameArg?: string,
+  context?: RuntimeContext
 ): Promise<CustomApiDiffResult> {
-  const localCatalog = await loadLocalCustomApiCatalog(uniqueNameArg);
-  const uniqueName = uniqueNameArg ?? (await getActiveCustomApiUniqueName());
+  const localCatalog = await loadLocalCustomApiCatalog(uniqueNameArg, context);
+  const uniqueName = uniqueNameArg ?? (await getActiveCustomApiUniqueName(context));
 
   if (!uniqueName) {
     throw new Error("Keine Custom API angegeben und keine aktive API gesetzt.");
   }
 
-  const env = await getCurrentEnvironment();
-  const client = new DataverseClient(env.environmentUrl);
+  const env = await getCurrentEnvironment(context);
+  const client = new DataverseClient(env.environmentUrl, context);
   const repository = new CustomApiRepository(client);
 
   const remoteCatalog = await repository.exportCatalog(uniqueName, {

@@ -1,22 +1,40 @@
 import path from "node:path";
 import { loadAppConfig } from "../config/loadConfig.js";
+import {
+  resolveWorkingDirectory,
+  type RuntimeContext,
+} from "../models/runtime-context.js";
 
-export async function getCacheRootPath(): Promise<string> {
-    const config = await loadAppConfig();
-    return path.join(process.cwd(), config.cachePath);
+export async function getCacheRootPath(context?: RuntimeContext): Promise<string> {
+  if (context?.cacheRootPath) {
+    return context.cacheRootPath;
+  }
+
+  const config = await loadAppConfig(context);
+  return path.join(resolveWorkingDirectory(context), config.cachePath);
 }
 
-export async function getEnvironmentCacheFilePath(): Promise<string> {
-    const cacheRoot = await getCacheRootPath();
-    return path.join(cacheRoot, "environment.json");
+export async function getEnvironmentCacheFilePath(
+  context?: RuntimeContext
+): Promise<string> {
+  const cacheRoot = await getCacheRootPath(context);
+  return path.join(cacheRoot, "environment.json");
 }
 
-export async function getActiveApiCacheFilePath(): Promise<string> {
-    const cacheRoot = await getCacheRootPath();
-    return path.join(cacheRoot, "active-api.json");
+export async function getActiveApiCacheFilePath(
+  context?: RuntimeContext
+): Promise<string> {
+  const cacheRoot = await getCacheRootPath(context);
+  return path.join(cacheRoot, "active-api.json");
 }
 
-export async function getCustomApiOutputRootPath(): Promise<string> {
-    const config = await loadAppConfig();
-    return path.join(process.cwd(), config.customApiOutputPath);
+export async function getCustomApiOutputRootPath(
+  context?: RuntimeContext
+): Promise<string> {
+  if (context?.customApiOutputRootPath) {
+    return context.customApiOutputRootPath;
+  }
+
+  const config = await loadAppConfig(context);
+  return path.join(resolveWorkingDirectory(context), config.customApiOutputPath);
 }
