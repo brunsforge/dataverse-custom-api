@@ -1,0 +1,5 @@
+{
+    "tenantId": "<TENANT_ID>",
+    "clientId": "<CLIENT_ID_DELEGATED>",
+    "authMode": "deviceCode"
+}

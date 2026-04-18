@@ -1,4 +1,12 @@
-/dist
-/node_modules
-.cache/*
+/dist/
+/node_modules/
+/.cache/
+
 auth.json
+auth.clientsecret.json
+auth.devicecode.json
+auth.interactivebrowser.json
+
+.env
+.env.*
+*.log
