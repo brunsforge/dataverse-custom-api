@@ -12,7 +12,9 @@ export async function createCredential(): Promise<TokenCredential> {
 
     if (authMode === "clientSecret") {
         if (!auth.tenantId || !auth.clientId || !auth.clientSecret) {
-            throw new Error("auth.json ist für clientSecret unvollständig.");
+            throw new Error(
+                "auth.json ist für authMode='clientSecret' unvollständig. Erwartet werden tenantId, clientId und clientSecret."
+            );
         }
 
         return new ClientSecretCredential(
@@ -24,7 +26,9 @@ export async function createCredential(): Promise<TokenCredential> {
 
     if (authMode === "interactiveBrowser") {
         if (!auth.tenantId || !auth.clientId) {
-            throw new Error("auth.json ist für interactiveBrowser unvollständig.");
+            throw new Error(
+                "auth.json ist für authMode='interactiveBrowser' unvollständig. Erwartet werden tenantId und clientId."
+            );
         }
 
         return new InteractiveBrowserCredential({
@@ -35,7 +39,13 @@ export async function createCredential(): Promise<TokenCredential> {
 
     const options: ConstructorParameters<typeof DeviceCodeCredential>[0] = {
         userPromptCallback: (info) => {
-            console.log(info.message);
+            if (info?.message) {
+                console.log(info.message);
+            } else {
+                console.log(
+                    "Device-Code-Anmeldung wurde gestartet. Bitte den Anmeldehinweisen folgen."
+                );
+            }
         },
     };
 
@@ -53,15 +63,23 @@ export async function createCredential(): Promise<TokenCredential> {
 export async function getDataverseAccessToken(
     environmentUrl: string
 ): Promise<string> {
-    const credential = await createCredential();
-    const normalizedEnvironmentUrl = environmentUrl.replace(/\/$/, "");
-    const scope = `${normalizedEnvironmentUrl}/.default`;
+    try {
+        const credential = await createCredential();
+        const normalizedEnvironmentUrl = environmentUrl.replace(/\/$/, "");
+        const scope = `${normalizedEnvironmentUrl}/.default`;
 
-    const token = await credential.getToken(scope);
+        const token = await credential.getToken(scope);
 
-    if (!token?.token) {
-        throw new Error("Kein Access Token für Dataverse erhalten.");
+        if (!token?.token) {
+            throw new Error("Kein Access Token für Dataverse erhalten.");
+        }
+
+        return token.token;
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+
+        throw new Error(
+            `Tokenanforderung für Dataverse fehlgeschlagen. Environment='${environmentUrl}', Details='${message}'`
+        );
     }
-
-    return token.token;
 }

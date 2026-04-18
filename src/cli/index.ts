@@ -5,6 +5,7 @@ import { runConnectCommand } from "./commands/connect.js";
 import { runListCommand } from "./commands/list.js";
 import { runSelectCommand } from "./commands/select.js";
 import { runExportCommand } from "./commands/export.js";
+import { formatCliError } from "../utils/errorHelpers.js";
 
 const program = new Command();
 
@@ -35,3 +36,16 @@ program
     .action(async (options) => {
         await runSelectCommand(options.name);
     });
+
+program
+    .command("export")
+    .description("Exportiert eine Custom API als lokale JSON-Datei")
+    .option("-n, --name <uniqueName>", "Unique Name der Custom API")
+    .action(async (options) => {
+        await runExportCommand(options.name);
+    });
+
+program.parseAsync(process.argv).catch((error: unknown) => {
+    console.error(formatCliError(error, "cli"));
+    process.exit(1);
+});
