@@ -1,5 +1,5 @@
 {
     "mode": "dev",
-    "cachePath": ".cache/",
-    "dataverseApiUrl": "https://orgf707a816.crm16.dynamics.com/api/data/v9.2/"
+    "cachePath": ".cache",
+    "customApiOutputPath": ".cache/customapis"
 }
