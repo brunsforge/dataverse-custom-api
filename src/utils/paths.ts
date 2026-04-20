@@ -14,6 +14,17 @@ export async function getCacheRootPath(context?: RuntimeContext): Promise<string
   return path.join(resolveWorkingDirectory(context), config.cachePath);
 }
 
+export async function getEnvironmentStoreFilePath(
+  context?: RuntimeContext
+): Promise<string> {
+  const cacheRoot = await getCacheRootPath(context);
+  return path.join(cacheRoot, "environments.json");
+}
+
+/**
+ * Legacy single-environment cache file.
+ * Wird nur noch für Migration/Abwärtskompatibilität verwendet.
+ */
 export async function getEnvironmentCacheFilePath(
   context?: RuntimeContext
 ): Promise<string> {

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { unlink } from "node:fs/promises";
 import { DataverseClient } from "../api/dataverseClient.js";
 import { CustomApiRepository } from "../api/customApiRepository.js";
 import type { EnvironmentCache, ActiveApiCache } from "../models/configModels.js";
@@ -9,7 +10,7 @@ import type {
 } from "../models/customApiModels.js";
 import type { RuntimeContext } from "../models/runtime-context.js";
 import { loadAuthConfig } from "../auth/authConfig.js";
-import { ensureCacheFolders, readJsonFile, writeJsonFile } from "../utils/fileSystem.js";
+import { ensureCacheFolders, readJsonFile, writeJsonFile, fileExists } from "../utils/fileSystem.js";
 import {
   getActiveApiCacheFilePath,
   getCustomApiOutputRootPath,
@@ -25,6 +26,18 @@ export interface ConnectResult {
 export interface SelectResult {
   uniqueName: string;
   activeApiCacheFilePath: string;
+}
+
+export interface CurrentCustomApiResult {
+  uniqueName: string;
+  activeApiCacheFilePath: string;
+}
+
+export interface RemoveCustomApiResult {
+  uniqueName: string;
+  filePath: string;
+  fileDeleted: boolean;
+  activeApiCleared: boolean;
 }
 
 export interface ExportResult {
@@ -53,6 +66,13 @@ export interface CustomApiDiffResult {
   topLevelChanges: DiffFieldChange[];
   requestParameterChanges: DiffItemChange<unknown>[];
   responsePropertyChanges: DiffItemChange<unknown>[];
+}
+
+function getCustomApiArtifactFilePath(
+  uniqueName: string,
+  outputRoot: string
+): string {
+  return path.join(outputRoot, `${uniqueName}.json`);
 }
 
 export async function connectToEnvironment(
@@ -134,6 +154,55 @@ export async function getActiveCustomApiUniqueName(
   return activeApi.uniqueName;
 }
 
+export async function getCurrentCustomApi(
+  context?: RuntimeContext
+): Promise<CurrentCustomApiResult> {
+  const activeApiCacheFilePath = await getActiveApiCacheFilePath(context);
+  const activeApi = await readJsonFile<ActiveApiCache>(activeApiCacheFilePath);
+
+  return {
+    uniqueName: activeApi.uniqueName,
+    activeApiCacheFilePath,
+  };
+}
+
+export async function removeCustomApi(
+  uniqueNameArg?: string,
+  context?: RuntimeContext
+): Promise<RemoveCustomApiResult> {
+  await ensureCacheFolders(context);
+
+  const activeApiCacheFilePath = await getActiveApiCacheFilePath(context);
+  const activeUniqueName = await getActiveCustomApiUniqueName(context);
+  const uniqueName = uniqueNameArg ?? activeUniqueName;
+
+  if (!uniqueName) {
+    throw new Error("Keine Custom API angegeben und keine aktive API gesetzt.");
+  }
+
+  const outputRoot = await getCustomApiOutputRootPath(context);
+  const filePath = getCustomApiArtifactFilePath(uniqueName, outputRoot);
+
+  let fileDeleted = false;
+  if (await fileExists(filePath)) {
+    await unlink(filePath);
+    fileDeleted = true;
+  }
+
+  let activeApiCleared = false;
+  if (activeUniqueName === uniqueName && await fileExists(activeApiCacheFilePath)) {
+    await unlink(activeApiCacheFilePath);
+    activeApiCleared = true;
+  }
+
+  return {
+    uniqueName,
+    filePath,
+    fileDeleted,
+    activeApiCleared,
+  };
+}
+
 export async function exportCustomApi(
   uniqueNameArg?: string,
   context?: RuntimeContext
@@ -154,7 +223,7 @@ export async function exportCustomApi(
   });
 
   const outputRoot = await getCustomApiOutputRootPath(context);
-  const filePath = path.join(outputRoot, `${uniqueName}.json`);
+  const filePath = getCustomApiArtifactFilePath(uniqueName, outputRoot);
   await writeJsonFile(filePath, catalog);
 
   return {
@@ -175,7 +244,7 @@ export async function loadLocalCustomApiCatalog(
   }
 
   const outputRoot = await getCustomApiOutputRootPath(context);
-  const filePath = path.join(outputRoot, `${uniqueName}.json`);
+  const filePath = getCustomApiArtifactFilePath(uniqueName, outputRoot);
   return readJsonFile<CustomApiCatalogModel>(filePath);
 }
 

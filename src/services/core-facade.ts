@@ -23,10 +23,14 @@ import {
   diffCustomApi,
   exportCustomApi,
   getActiveCustomApiUniqueName,
+  getCurrentCustomApi,
   getCurrentEnvironment,
   listCustomApis,
   loadLocalCustomApiCatalog,
+  removeCustomApi,
   setActiveCustomApi,
+  type CurrentCustomApiResult,
+  type RemoveCustomApiResult,
 } from "./customApiService.js";
 
 export interface CoreFacade {
@@ -35,6 +39,8 @@ export interface CoreFacade {
   listCustomApis(): Promise<ListCustomApisResult>;
   selectCustomApi(options: SelectCustomApiOptions): Promise<SelectCustomApiResult>;
   getActiveCustomApiUniqueName(): Promise<string>;
+  getCurrentCustomApi(): Promise<CurrentCustomApiResult>;
+  removeCustomApi(uniqueName?: string): Promise<RemoveCustomApiResult>;
   exportCustomApi(options?: ExportCustomApiOptions): Promise<ExportCustomApiResult>;
   loadLocalCustomApiCatalog(
     options?: LoadLocalCustomApiCatalogOptions
@@ -64,6 +70,14 @@ export function createCoreFacade(context?: RuntimeContext): CoreFacade {
 
     async getActiveCustomApiUniqueName(): Promise<string> {
       return getActiveCustomApiUniqueName(context);
+    },
+
+    async getCurrentCustomApi(): Promise<CurrentCustomApiResult> {
+      return getCurrentCustomApi(context);
+    },
+
+    async removeCustomApi(uniqueName?: string): Promise<RemoveCustomApiResult> {
+      return removeCustomApi(uniqueName, context);
     },
 
     async exportCustomApi(
