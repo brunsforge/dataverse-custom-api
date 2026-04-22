@@ -5,8 +5,15 @@ import { CustomApiRepository } from "../api/customApiRepository.js";
 import type { EnvironmentCache, ActiveApiCache } from "../models/configModels.js";
 import type {
   CustomApiCatalogModel,
+  CustomApiChangeKind,
   CustomApiDefinitionModel,
+  CustomApiParameterModel,
+  CustomApiResponsePropertyModel,
+  CustomApiSemanticDiffCounter,
+  CustomApiSemanticDiffItem,
+  CustomApiSemanticDiffResult,
   CustomApiSummaryModel,
+  SemanticDiffFieldChange,
 } from "../models/customApiModels.js";
 import type { RuntimeContext } from "../models/runtime-context.js";
 import { loadAuthConfig } from "../auth/authConfig.js";
@@ -44,28 +51,6 @@ export interface ExportResult {
   uniqueName: string;
   filePath: string;
   catalog: CustomApiCatalogModel;
-}
-
-export interface DiffFieldChange {
-  field: string;
-  localValue?: unknown;
-  remoteValue?: unknown;
-}
-
-export interface DiffItemChange<T> {
-  uniqueName: string;
-  local?: T;
-  remote?: T;
-  kind: "added" | "removed" | "changed";
-  fieldChanges?: DiffFieldChange[];
-}
-
-export interface CustomApiDiffResult {
-  uniqueName: string;
-  isDifferent: boolean;
-  topLevelChanges: DiffFieldChange[];
-  requestParameterChanges: DiffItemChange<unknown>[];
-  responsePropertyChanges: DiffItemChange<unknown>[];
 }
 
 function getCustomApiArtifactFilePath(
@@ -248,22 +233,86 @@ export async function loadLocalCustomApiCatalog(
   return readJsonFile<CustomApiCatalogModel>(filePath);
 }
 
-function compareSimpleFields(
-  localApi: CustomApiDefinitionModel,
-  remoteApi: CustomApiDefinitionModel,
-  fields: Array<keyof CustomApiDefinitionModel>
-): DiffFieldChange[] {
-  const changes: DiffFieldChange[] = [];
+const CUSTOM_API_RECREATE_FIELDS: Array<keyof CustomApiDefinitionModel> = [
+  "uniqueName",
+  "bindingType",
+  "boundEntityLogicalName",
+  "isFunction",
+];
+
+const CUSTOM_API_COMPARE_FIELDS: Array<keyof CustomApiDefinitionModel> = [
+  "uniqueName",
+  "displayName",
+  "name",
+  "description",
+  "bindingType",
+  "executePrivilegeName",
+  "boundEntityLogicalName",
+  "pluginTypeName",
+  "pluginTypeId",
+  "pluginAssemblyName",
+  "pluginTypeFriendlyName",
+  "pluginAssemblyVersion",
+  "isFunction",
+  "isPrivate",
+  "workflowSdkStepEnabled",
+  "allowedCustomProcessingStepType",
+];
+
+const REQUEST_PARAMETER_RECREATE_FIELDS: Array<keyof CustomApiParameterModel> = [
+  "uniqueName",
+  "type",
+  "isOptional",
+  "logicalEntityName",
+];
+
+const REQUEST_PARAMETER_COMPARE_FIELDS: Array<keyof CustomApiParameterModel> = [
+  "uniqueName",
+  "name",
+  "displayName",
+  "description",
+  "type",
+  "isOptional",
+  "logicalEntityName",
+];
+
+const RESPONSE_PROPERTY_RECREATE_FIELDS: Array<keyof CustomApiResponsePropertyModel> = [
+  "uniqueName",
+  "type",
+  "logicalEntityName",
+];
+
+const RESPONSE_PROPERTY_COMPARE_FIELDS: Array<keyof CustomApiResponsePropertyModel> = [
+  "uniqueName",
+  "name",
+  "displayName",
+  "description",
+  "type",
+  "logicalEntityName",
+];
+
+function valuesEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function compareFields<T extends Record<string, unknown>>(
+  localItem: T,
+  remoteItem: T,
+  fields: string[],
+  immutableFields: string[]
+): SemanticDiffFieldChange[] {
+  const changes: SemanticDiffFieldChange[] = [];
 
   for (const field of fields) {
-    const localValue = localApi[field];
-    const remoteValue = remoteApi[field];
+    const localValue = localItem[field];
+    const remoteValue = remoteItem[field];
 
-    if (JSON.stringify(localValue) !== JSON.stringify(remoteValue)) {
+    if (!valuesEqual(localValue, remoteValue)) {
       changes.push({
-        field: String(field),
+        field,
         localValue,
         remoteValue,
+        isImmutable: immutableFields.includes(field),
       });
     }
   }
@@ -271,44 +320,120 @@ function compareSimpleFields(
   return changes;
 }
 
-function buildItemMap<T extends { uniqueName: string }>(items: T[]): Map<string, T> {
+function buildEmptyCounter(): CustomApiSemanticDiffCounter {
+  return {
+    none: 0,
+    create: 0,
+    update: 0,
+    delete: 0,
+    recreate: 0,
+  };
+}
+
+function incrementCounter(
+  counter: CustomApiSemanticDiffCounter,
+  kind: CustomApiChangeKind
+): void {
+  counter[kind] += 1;
+}
+
+function buildMapByUniqueName<T extends { uniqueName: string }>(items: T[]): Map<string, T> {
   const map = new Map<string, T>();
+
   for (const item of items) {
     map.set(item.uniqueName, item);
   }
+
   return map;
 }
 
-function diffNamedItems<T extends { uniqueName: string }>(
+function buildSemanticItem<T extends { uniqueName: string }>(
+  objectType: "customApi" | "requestParameter" | "responseProperty",
+  uniqueName: string,
+  kind: CustomApiChangeKind,
+  fieldChanges: SemanticDiffFieldChange[],
+  local?: T | null,
+  remote?: T | null
+): CustomApiSemanticDiffItem<T> {
+  const immutableFieldChanges = fieldChanges
+    .filter((change) => change.isImmutable)
+    .map((change) => change.field);
+
+  const result: CustomApiSemanticDiffItem<T> = {
+    objectType,
+    uniqueName,
+    kind,
+    requiresRecreate: kind === "recreate",
+    fieldChanges,
+    immutableFieldChanges,
+  };
+
+  if (local !== undefined) {
+    result.local = local;
+  }
+
+  if (remote !== undefined) {
+    result.remote = remote;
+  }
+
+  return result;
+}
+
+function diffSingleObject<T extends { uniqueName: string }>(
+  objectType: "customApi" | "requestParameter" | "responseProperty",
+  localItem: T,
+  remoteItem: T,
+  fields: string[],
+  immutableFields: string[]
+): CustomApiSemanticDiffItem<T> {
+  const fieldChanges = compareFields(
+    localItem as Record<string, unknown>,
+    remoteItem as Record<string, unknown>,
+    fields,
+    immutableFields
+  );
+
+  if (fieldChanges.length === 0) {
+    return buildSemanticItem(objectType, localItem.uniqueName, "none", [], localItem, remoteItem);
+  }
+
+  const hasImmutableChange = fieldChanges.some((change) => change.isImmutable);
+  return buildSemanticItem(
+    objectType,
+    localItem.uniqueName,
+    hasImmutableChange ? "recreate" : "update",
+    fieldChanges,
+    localItem,
+    remoteItem
+  );
+}
+
+function diffNamedCollection<T extends { uniqueName: string }>(
+  objectType: "requestParameter" | "responseProperty",
   localItems: T[],
   remoteItems: T[],
-  fieldNames: string[]
-): DiffItemChange<unknown>[] {
-  const changes: DiffItemChange<unknown>[] = [];
-  const localMap = buildItemMap(localItems);
-  const remoteMap = buildItemMap(remoteItems);
+  fields: string[],
+  immutableFields: string[]
+): Array<CustomApiSemanticDiffItem<T>> {
+  const results: Array<CustomApiSemanticDiffItem<T>> = [];
+  const localMap = buildMapByUniqueName(localItems);
+  const remoteMap = buildMapByUniqueName(remoteItems);
+  const allUniqueNames = Array.from(new Set<string>([
+    ...localMap.keys(),
+    ...remoteMap.keys(),
+  ])).sort((a, b) => a.localeCompare(b, "de"));
 
-  const uniqueNames = new Set<string>([...localMap.keys(), ...remoteMap.keys()]);
-
-  for (const uniqueName of uniqueNames) {
+  for (const uniqueName of allUniqueNames) {
     const localItem = localMap.get(uniqueName);
     const remoteItem = remoteMap.get(uniqueName);
 
     if (localItem && !remoteItem) {
-      changes.push({
-        uniqueName,
-        local: localItem,
-        kind: "removed",
-      });
+      results.push(buildSemanticItem(objectType, uniqueName, "create", [], localItem, null));
       continue;
     }
 
     if (!localItem && remoteItem) {
-      changes.push({
-        uniqueName,
-        remote: remoteItem,
-        kind: "added",
-      });
+      results.push(buildSemanticItem(objectType, uniqueName, "delete", [], null, remoteItem));
       continue;
     }
 
@@ -316,39 +441,18 @@ function diffNamedItems<T extends { uniqueName: string }>(
       continue;
     }
 
-    const fieldChanges: DiffFieldChange[] = [];
-
-    for (const fieldName of fieldNames) {
-      const localValue = (localItem as Record<string, unknown>)[fieldName];
-      const remoteValue = (remoteItem as Record<string, unknown>)[fieldName];
-
-      if (JSON.stringify(localValue) !== JSON.stringify(remoteValue)) {
-        fieldChanges.push({
-          field: fieldName,
-          localValue,
-          remoteValue,
-        });
-      }
-    }
-
-    if (fieldChanges.length > 0) {
-      changes.push({
-        uniqueName,
-        local: localItem,
-        remote: remoteItem,
-        kind: "changed",
-        fieldChanges,
-      });
-    }
+    results.push(
+      diffSingleObject(objectType, localItem, remoteItem, fields, immutableFields)
+    );
   }
 
-  return changes;
+  return results;
 }
 
 export async function diffCustomApi(
   uniqueNameArg?: string,
   context?: RuntimeContext
-): Promise<CustomApiDiffResult> {
+): Promise<CustomApiSemanticDiffResult> {
   const localCatalog = await loadLocalCustomApiCatalog(uniqueNameArg, context);
   const uniqueName = uniqueNameArg ?? (await getActiveCustomApiUniqueName(context));
 
@@ -375,45 +479,62 @@ export async function diffCustomApi(
     throw new Error(`Remote-Definition für '${uniqueName}' konnte nicht geladen werden.`);
   }
 
-  const topLevelChanges = compareSimpleFields(localApi, remoteApi, [
-    "uniqueName",
-    "displayName",
-    "name",
-    "description",
-    "bindingType",
-    "executePrivilegeName",
-    "boundEntityLogicalName",
-    "pluginTypeName",
-    "pluginTypeId",
-    "pluginAssemblyName",
-    "pluginTypeFriendlyName",
-    "pluginAssemblyVersion",
-    "isFunction",
-    "isPrivate",
-    "workflowSdkStepEnabled",
-    "allowedCustomProcessingStepType",
-  ]);
+  const customApiDiff = diffSingleObject(
+    "customApi",
+    localApi,
+    remoteApi,
+    CUSTOM_API_COMPARE_FIELDS as string[],
+    CUSTOM_API_RECREATE_FIELDS as string[]
+  );
 
-  const requestParameterChanges = diffNamedItems(
+  const requestParameterDiffs = diffNamedCollection(
+    "requestParameter",
     localApi.requestParameters,
     remoteApi.requestParameters,
-    ["name", "displayName", "description", "type", "isOptional", "logicalEntityName"]
+    REQUEST_PARAMETER_COMPARE_FIELDS as string[],
+    REQUEST_PARAMETER_RECREATE_FIELDS as string[]
   );
 
-  const responsePropertyChanges = diffNamedItems(
+  const responsePropertyDiffs = diffNamedCollection(
+    "responseProperty",
     localApi.responseProperties,
     remoteApi.responseProperties,
-    ["name", "displayName", "description", "type", "logicalEntityName"]
+    RESPONSE_PROPERTY_COMPARE_FIELDS as string[],
+    RESPONSE_PROPERTY_RECREATE_FIELDS as string[]
   );
 
+  const requestCounter = buildEmptyCounter();
+  for (const item of requestParameterDiffs) {
+    incrementCounter(requestCounter, item.kind);
+  }
+
+  const responseCounter = buildEmptyCounter();
+  for (const item of responsePropertyDiffs) {
+    incrementCounter(responseCounter, item.kind);
+  }
+
+  const requiresCustomApiRecreate = customApiDiff.requiresRecreate;
+  const requiresAnyRecreate =
+    requiresCustomApiRecreate ||
+    requestParameterDiffs.some((item) => item.requiresRecreate) ||
+    responsePropertyDiffs.some((item) => item.requiresRecreate);
+
   return {
+    schemaVersion: "1.0.0",
     uniqueName,
     isDifferent:
-      topLevelChanges.length > 0 ||
-      requestParameterChanges.length > 0 ||
-      responsePropertyChanges.length > 0,
-    topLevelChanges,
-    requestParameterChanges,
-    responsePropertyChanges,
+      customApiDiff.kind !== "none" ||
+      requestParameterDiffs.some((item) => item.kind !== "none") ||
+      responsePropertyDiffs.some((item) => item.kind !== "none"),
+    summary: {
+      customApiChangeKind: customApiDiff.kind,
+      requiresCustomApiRecreate,
+      requiresAnyRecreate,
+      requestParameterChanges: requestCounter,
+      responsePropertyChanges: responseCounter,
+    },
+    customApi: customApiDiff,
+    requestParameters: requestParameterDiffs,
+    responseProperties: responsePropertyDiffs,
   };
 }

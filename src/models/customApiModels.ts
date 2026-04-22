@@ -86,3 +86,54 @@ export interface CustomApiSummaryModel {
   executePrivilegeName?: string;
   pluginTypeName?: string;
 }
+
+export type CustomApiChangeKind =
+  | "none"
+  | "create"
+  | "update"
+  | "delete"
+  | "recreate";
+
+export interface SemanticDiffFieldChange {
+  field: string;
+  localValue?: unknown;
+  remoteValue?: unknown;
+  isImmutable: boolean;
+}
+
+export interface CustomApiSemanticDiffItem<T> {
+  objectType: "customApi" | "requestParameter" | "responseProperty";
+  uniqueName: string;
+  kind: CustomApiChangeKind;
+  requiresRecreate: boolean;
+  fieldChanges: SemanticDiffFieldChange[];
+  immutableFieldChanges: string[];
+  local?: T | null;
+  remote?: T | null;
+}
+
+export interface CustomApiSemanticDiffCounter {
+  none: number;
+  create: number;
+  update: number;
+  delete: number;
+  recreate: number;
+}
+
+export interface CustomApiSemanticDiffSummary {
+  customApiChangeKind: CustomApiChangeKind;
+  requiresCustomApiRecreate: boolean;
+  requiresAnyRecreate: boolean;
+  requestParameterChanges: CustomApiSemanticDiffCounter;
+  responsePropertyChanges: CustomApiSemanticDiffCounter;
+}
+
+export interface CustomApiSemanticDiffResult {
+  schemaVersion: string;
+  uniqueName: string;
+  isDifferent: boolean;
+  summary: CustomApiSemanticDiffSummary;
+  customApi: CustomApiSemanticDiffItem<CustomApiDefinitionModel>;
+  requestParameters: Array<CustomApiSemanticDiffItem<CustomApiParameterModel>>;
+  responseProperties: Array<CustomApiSemanticDiffItem<CustomApiResponsePropertyModel>>;
+}

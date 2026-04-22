@@ -1,6 +1,7 @@
 import type { EnvironmentCache } from "./configModels.js";
 import type {
   CustomApiCatalogModel,
+  CustomApiSemanticDiffResult,
   CustomApiSummaryModel,
 } from "./customApiModels.js";
 
@@ -42,28 +43,8 @@ export interface LoadLocalCustomApiCatalogOptions {
 
 export type LoadLocalCustomApiCatalogResult = CustomApiCatalogModel;
 
-export interface DiffFieldChange {
-  field: string;
-  localValue?: unknown;
-  remoteValue?: unknown;
-}
-
-export interface DiffItemChange<T> {
-  uniqueName: string;
-  local?: T;
-  remote?: T;
-  kind: "added" | "removed" | "changed";
-  fieldChanges?: DiffFieldChange[];
-}
-
 export interface DiffCustomApiOptions {
   uniqueName?: string;
 }
 
-export interface DiffCustomApiResult {
-  uniqueName: string;
-  isDifferent: boolean;
-  topLevelChanges: DiffFieldChange[];
-  requestParameterChanges: DiffItemChange<unknown>[];
-  responsePropertyChanges: DiffItemChange<unknown>[];
-}
+export type DiffCustomApiResult = CustomApiSemanticDiffResult;

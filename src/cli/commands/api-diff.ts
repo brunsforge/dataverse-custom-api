@@ -13,28 +13,49 @@ export async function runApiDiffCommand(
 
   console.log(`Diff für: ${result.uniqueName}`);
   console.log(`Unterschiede vorhanden: ${result.isDifferent ? "Ja" : "Nein"}`);
+  console.log(`Custom API: ${result.customApi.kind}`);
 
-  if (result.topLevelChanges.length > 0) {
-    console.log("");
-    console.log("Top-Level-Änderungen:");
-    for (const change of result.topLevelChanges) {
-      console.log(`- ${change.field}`);
+  if (result.summary.requiresCustomApiRecreate) {
+    console.log("Custom API muss neu angelegt werden: Ja");
+  }
+
+  if (result.summary.requiresAnyRecreate) {
+    console.log("Mindestens ein Objekt erfordert Delete + Recreate: Ja");
+  }
+
+  console.log("");
+  console.log("Request-Parameter-Summary:");
+  console.log(
+    `  none=${result.summary.requestParameterChanges.none}, create=${result.summary.requestParameterChanges.create}, update=${result.summary.requestParameterChanges.update}, delete=${result.summary.requestParameterChanges.delete}, recreate=${result.summary.requestParameterChanges.recreate}`
+  );
+
+  const requestChanges = result.requestParameters.filter((item) => item.kind !== "none");
+  if (requestChanges.length > 0) {
+    for (const item of requestChanges) {
+      const immutableSuffix =
+        item.immutableFieldChanges.length > 0
+          ? ` | immutable: ${item.immutableFieldChanges.join(", ")}`
+          : "";
+
+      console.log(`- ${item.kind}: ${item.uniqueName}${immutableSuffix}`);
     }
   }
 
-  if (result.requestParameterChanges.length > 0) {
-    console.log("");
-    console.log("Request-Parameter-Änderungen:");
-    for (const change of result.requestParameterChanges) {
-      console.log(`- ${change.kind}: ${change.uniqueName}`);
-    }
-  }
+  console.log("");
+  console.log("Response-Property-Summary:");
+  console.log(
+    `  none=${result.summary.responsePropertyChanges.none}, create=${result.summary.responsePropertyChanges.create}, update=${result.summary.responsePropertyChanges.update}, delete=${result.summary.responsePropertyChanges.delete}, recreate=${result.summary.responsePropertyChanges.recreate}`
+  );
 
-  if (result.responsePropertyChanges.length > 0) {
-    console.log("");
-    console.log("Response-Property-Änderungen:");
-    for (const change of result.responsePropertyChanges) {
-      console.log(`- ${change.kind}: ${change.uniqueName}`);
+  const responseChanges = result.responseProperties.filter((item) => item.kind !== "none");
+  if (responseChanges.length > 0) {
+    for (const item of responseChanges) {
+      const immutableSuffix =
+        item.immutableFieldChanges.length > 0
+          ? ` | immutable: ${item.immutableFieldChanges.join(", ")}`
+          : "";
+
+      console.log(`- ${item.kind}: ${item.uniqueName}${immutableSuffix}`);
     }
   }
 }
