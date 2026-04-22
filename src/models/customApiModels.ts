@@ -137,3 +137,82 @@ export interface CustomApiSemanticDiffResult {
   requestParameters: Array<CustomApiSemanticDiffItem<CustomApiParameterModel>>;
   responseProperties: Array<CustomApiSemanticDiffItem<CustomApiResponsePropertyModel>>;
 }
+
+export type CustomApiSyncAction =
+  | "createCustomApi"
+  | "updateCustomApi"
+  | "deleteCustomApi"
+  | "createRequestParameter"
+  | "updateRequestParameter"
+  | "deleteRequestParameter"
+  | "createResponseProperty"
+  | "updateResponseProperty"
+  | "deleteResponseProperty";
+
+export type CustomApiSyncOperationStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "skipped";
+
+export interface CustomApiSyncOperation {
+  operationId: string;
+  sequence: number;
+  action: CustomApiSyncAction;
+  objectType: "customApi" | "requestParameter" | "responseProperty";
+  uniqueName: string;
+  reason: "new" | "changed" | "deleted" | "recreate" | "parentRecreate";
+  changedFields?: string[];
+  requiresDestructiveChange: boolean;
+}
+
+export interface CustomApiSyncPlan {
+  schemaVersion: string;
+  planId: string;
+  uniqueName: string;
+  generatedAtUtc: string;
+  requiresDestructiveChanges: boolean;
+  operations: CustomApiSyncOperation[];
+}
+
+export interface CustomApiSyncOperationError {
+  name: string;
+  message: string;
+  code?: string;
+  details?: string;
+}
+
+export interface CustomApiSyncOperationResult {
+  operationId: string;
+  action: CustomApiSyncAction;
+  objectType: "customApi" | "requestParameter" | "responseProperty";
+  uniqueName: string;
+  status: CustomApiSyncOperationStatus;
+  startedAtUtc: string;
+  finishedAtUtc: string;
+  durationMs: number;
+  message: string;
+  simulated: boolean;
+  error?: CustomApiSyncOperationError;
+}
+
+export interface CustomApiSyncExecutionOperationState extends CustomApiSyncOperation {
+  status: CustomApiSyncOperationStatus;
+  startedAtUtc?: string;
+  finishedAtUtc?: string;
+  durationMs?: number;
+  message?: string;
+  simulated?: boolean;
+  error?: CustomApiSyncOperationError;
+}
+
+export interface CustomApiSyncExecutionState {
+  schemaVersion: string;
+  planId: string;
+  uniqueName: string;
+  status: "pending" | "running" | "succeeded" | "failed";
+  startedAtUtc?: string;
+  finishedAtUtc?: string;
+  operations: CustomApiSyncExecutionOperationState[];
+}

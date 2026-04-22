@@ -3,6 +3,9 @@ import type {
   CustomApiCatalogModel,
   CustomApiSemanticDiffResult,
   CustomApiSummaryModel,
+  CustomApiSyncExecutionState,
+  CustomApiSyncOperationResult,
+  CustomApiSyncPlan,
 } from "./customApiModels.js";
 
 export interface ConnectOptions {
@@ -48,3 +51,41 @@ export interface DiffCustomApiOptions {
 }
 
 export type DiffCustomApiResult = CustomApiSemanticDiffResult;
+
+export interface BuildCustomApiSyncPlanOptions {
+  uniqueName?: string;
+}
+
+export interface BuildCustomApiSyncPlanResult {
+  uniqueName: string;
+  filePath: string;
+  stateFilePath: string;
+  plan: CustomApiSyncPlan;
+  executionState: CustomApiSyncExecutionState;
+}
+
+export interface ExecuteCustomApiSyncOperationOptions {
+  uniqueName?: string;
+  operationId: string;
+  simulate?: boolean;
+}
+
+export interface ExecuteCustomApiSyncOperationResult {
+  uniqueName: string;
+  filePath: string;
+  stateFilePath: string;
+  result: CustomApiSyncOperationResult;
+  executionState: CustomApiSyncExecutionState;
+}
+
+export interface ExecuteCustomApiSyncPlanOptions {
+  uniqueName?: string;
+  simulate?: boolean;
+}
+
+export interface ExecuteCustomApiSyncPlanResult {
+  uniqueName: string;
+  filePath: string;
+  stateFilePath: string;
+  executionState: CustomApiSyncExecutionState;
+}

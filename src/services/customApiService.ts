@@ -13,6 +13,11 @@ import type {
   CustomApiSemanticDiffItem,
   CustomApiSemanticDiffResult,
   CustomApiSummaryModel,
+  CustomApiSyncExecutionState,
+  CustomApiSyncOperation,
+  CustomApiSyncOperationError,
+  CustomApiSyncOperationResult,
+  CustomApiSyncPlan,
   SemanticDiffFieldChange,
 } from "../models/customApiModels.js";
 import type { RuntimeContext } from "../models/runtime-context.js";
@@ -53,11 +58,42 @@ export interface ExportResult {
   catalog: CustomApiCatalogModel;
 }
 
+export interface BuildSyncPlanResult {
+  uniqueName: string;
+  filePath: string;
+  stateFilePath: string;
+  plan: CustomApiSyncPlan;
+  executionState: CustomApiSyncExecutionState;
+}
+
+export interface ExecuteSyncOperationResult {
+  uniqueName: string;
+  filePath: string;
+  stateFilePath: string;
+  result: CustomApiSyncOperationResult;
+  executionState: CustomApiSyncExecutionState;
+}
+
+export interface ExecuteSyncPlanResult {
+  uniqueName: string;
+  filePath: string;
+  stateFilePath: string;
+  executionState: CustomApiSyncExecutionState;
+}
+
 function getCustomApiArtifactFilePath(
   uniqueName: string,
   outputRoot: string
 ): string {
   return path.join(outputRoot, `${uniqueName}.json`);
+}
+
+function getSyncPlanFilePath(uniqueName: string, outputRoot: string): string {
+  return path.join(outputRoot, `${uniqueName}.syncplan.json`);
+}
+
+function getSyncStateFilePath(uniqueName: string, outputRoot: string): string {
+  return path.join(outputRoot, `${uniqueName}.syncstate.json`);
 }
 
 export async function connectToEnvironment(
@@ -449,16 +485,233 @@ function diffNamedCollection<T extends { uniqueName: string }>(
   return results;
 }
 
+function ensureUniqueName(
+  uniqueNameArg: string | undefined,
+  activeUniqueName: string | undefined
+): string {
+  const uniqueName = uniqueNameArg ?? activeUniqueName;
+  if (!uniqueName) {
+    throw new Error("Keine Custom API angegeben und keine aktive API gesetzt.");
+  }
+
+  return uniqueName;
+}
+
+function buildOperationId(sequence: number, action: string, uniqueName: string): string {
+  const seq = String(sequence).padStart(4, "0");
+  return `op-${seq}-${action}-${uniqueName}`;
+}
+
+function createExecutionState(plan: CustomApiSyncPlan): CustomApiSyncExecutionState {
+  return {
+    schemaVersion: plan.schemaVersion,
+    planId: plan.planId,
+    uniqueName: plan.uniqueName,
+    status: "pending",
+    operations: plan.operations.map((operation) => ({
+      ...operation,
+      status: "pending",
+    })),
+  };
+}
+
+function buildErrorObject(error: unknown): CustomApiSyncOperationError {
+  if (error instanceof Error) {
+    const err: CustomApiSyncOperationError = {
+      name: error.name || "Error",
+      message: error.message,
+    };
+
+    const anyError = error as Error & { code?: string; details?: string };
+    if (anyError.code) {
+      err.code = anyError.code;
+    }
+
+    if (anyError.details) {
+      err.details = anyError.details;
+    }
+
+    return err;
+  }
+
+  return {
+    name: "Error",
+    message: String(error),
+  };
+}
+
+function markOverallStatus(state: CustomApiSyncExecutionState): void {
+  if (state.operations.some((operation) => operation.status === "failed")) {
+    state.status = "failed";
+    if (!state.finishedAtUtc) {
+      state.finishedAtUtc = new Date().toISOString();
+    }
+    return;
+  }
+
+  if (state.operations.length > 0 && state.operations.every((operation) => operation.status === "succeeded")) {
+    state.status = "succeeded";
+    if (!state.finishedAtUtc) {
+      state.finishedAtUtc = new Date().toISOString();
+    }
+    return;
+  }
+
+  if (state.operations.some((operation) => operation.status === "running")) {
+    state.status = "running";
+    return;
+  }
+
+  state.status = "pending";
+}
+
+
+
+async function loadPlanAndState(
+  uniqueName: string,
+  context?: RuntimeContext
+): Promise<{
+  planFilePath: string;
+  stateFilePath: string;
+  plan: CustomApiSyncPlan;
+  executionState: CustomApiSyncExecutionState;
+}> {
+  const outputRoot = await getCustomApiOutputRootPath(context);
+  const planFilePath = getSyncPlanFilePath(uniqueName, outputRoot);
+  const stateFilePath = getSyncStateFilePath(uniqueName, outputRoot);
+
+  const plan = await readJsonFile<CustomApiSyncPlan>(planFilePath);
+  const executionState = await readJsonFile<CustomApiSyncExecutionState>(stateFilePath);
+
+  return {
+    planFilePath,
+    stateFilePath,
+    plan,
+    executionState,
+  };
+}
+
+function buildPlanFromDiff(diff: CustomApiSemanticDiffResult): CustomApiSyncPlan {
+  let sequence = 10;
+  const operations: CustomApiSyncOperation[] = [];
+
+  const pushOperation = (
+    action: CustomApiSyncOperation["action"],
+    objectType: CustomApiSyncOperation["objectType"],
+    uniqueName: string,
+    reason: CustomApiSyncOperation["reason"],
+    requiresDestructiveChange: boolean,
+    changedFields?: string[]
+  ): void => {
+    const operation: CustomApiSyncOperation = {
+      operationId: buildOperationId(sequence, action, uniqueName),
+      sequence,
+      action,
+      objectType,
+      uniqueName,
+      reason,
+      requiresDestructiveChange,
+    };
+
+    if (changedFields && changedFields.length > 0) {
+      operation.changedFields = changedFields;
+    }
+
+    operations.push(operation);
+    sequence += 10;
+  };
+
+  if (diff.customApi.kind === "recreate") {
+    for (const response of diff.responseProperties) {
+      if (response.remote) {
+        pushOperation("deleteResponseProperty", "responseProperty", response.uniqueName, "parentRecreate", true);
+      }
+    }
+
+    for (const request of diff.requestParameters) {
+      if (request.remote) {
+        pushOperation("deleteRequestParameter", "requestParameter", request.uniqueName, "parentRecreate", true);
+      }
+    }
+
+    pushOperation("deleteCustomApi", "customApi", diff.uniqueName, "recreate", true);
+    pushOperation("createCustomApi", "customApi", diff.uniqueName, "recreate", true);
+
+    for (const request of diff.requestParameters) {
+      if (request.local) {
+        pushOperation("createRequestParameter", "requestParameter", request.uniqueName, request.kind === "create" ? "new" : "parentRecreate", true);
+      }
+    }
+
+    for (const response of diff.responseProperties) {
+      if (response.local) {
+        pushOperation("createResponseProperty", "responseProperty", response.uniqueName, response.kind === "create" ? "new" : "parentRecreate", true);
+      }
+    }
+  } else {
+    if (diff.customApi.kind === "update") {
+      pushOperation(
+        "updateCustomApi",
+        "customApi",
+        diff.uniqueName,
+        "changed",
+        false,
+        diff.customApi.fieldChanges.map((change) => change.field)
+      );
+    }
+
+    for (const item of diff.requestParameters) {
+      if (item.kind === "delete" || item.kind === "recreate") {
+        pushOperation("deleteRequestParameter", "requestParameter", item.uniqueName, item.kind === "recreate" ? "recreate" : "deleted", item.kind === "recreate");
+      }
+    }
+
+    for (const item of diff.responseProperties) {
+      if (item.kind === "delete" || item.kind === "recreate") {
+        pushOperation("deleteResponseProperty", "responseProperty", item.uniqueName, item.kind === "recreate" ? "recreate" : "deleted", item.kind === "recreate");
+      }
+    }
+
+    for (const item of diff.requestParameters) {
+      if (item.kind === "update") {
+        pushOperation("updateRequestParameter", "requestParameter", item.uniqueName, "changed", false, item.fieldChanges.map((change) => change.field));
+      }
+
+      if (item.kind === "create" || item.kind === "recreate") {
+        pushOperation("createRequestParameter", "requestParameter", item.uniqueName, item.kind === "create" ? "new" : "recreate", item.kind === "recreate");
+      }
+    }
+
+    for (const item of diff.responseProperties) {
+      if (item.kind === "update") {
+        pushOperation("updateResponseProperty", "responseProperty", item.uniqueName, "changed", false, item.fieldChanges.map((change) => change.field));
+      }
+
+      if (item.kind === "create" || item.kind === "recreate") {
+        pushOperation("createResponseProperty", "responseProperty", item.uniqueName, item.kind === "create" ? "new" : "recreate", item.kind === "recreate");
+      }
+    }
+  }
+
+  return {
+    schemaVersion: "1.0.0",
+    planId: `plan-${new Date().toISOString().replace(/[:.]/g, "-")}`,
+    uniqueName: diff.uniqueName,
+    generatedAtUtc: new Date().toISOString(),
+    requiresDestructiveChanges:
+      diff.summary.requiresCustomApiRecreate ||
+      diff.requestParameters.some((item) => item.kind === "delete" || item.kind === "recreate") ||
+      diff.responseProperties.some((item) => item.kind === "delete" || item.kind === "recreate"),
+    operations,
+  };
+}
+
 export async function diffCustomApi(
   uniqueNameArg?: string,
   context?: RuntimeContext
 ): Promise<CustomApiSemanticDiffResult> {
   const localCatalog = await loadLocalCustomApiCatalog(uniqueNameArg, context);
-  const uniqueName = uniqueNameArg ?? (await getActiveCustomApiUniqueName(context));
-
-  if (!uniqueName) {
-    throw new Error("Keine Custom API angegeben und keine aktive API gesetzt.");
-  }
+  const uniqueName = ensureUniqueName(uniqueNameArg, await getActiveCustomApiUniqueName(context));
 
   const env = await getCurrentEnvironment(context);
   const client = new DataverseClient(env.environmentUrl, context);
@@ -536,5 +789,187 @@ export async function diffCustomApi(
     customApi: customApiDiff,
     requestParameters: requestParameterDiffs,
     responseProperties: responsePropertyDiffs,
+  };
+}
+
+export async function buildCustomApiSyncPlan(
+  uniqueNameArg?: string,
+  context?: RuntimeContext
+): Promise<BuildSyncPlanResult> {
+  await ensureCacheFolders(context);
+  const diff = await diffCustomApi(uniqueNameArg, context);
+  const plan = buildPlanFromDiff(diff);
+  const executionState = createExecutionState(plan);
+
+  const outputRoot = await getCustomApiOutputRootPath(context);
+  const filePath = getSyncPlanFilePath(plan.uniqueName, outputRoot);
+  const stateFilePath = getSyncStateFilePath(plan.uniqueName, outputRoot);
+
+  await writeJsonFile(filePath, plan);
+  await writeJsonFile(stateFilePath, executionState);
+
+  return {
+    uniqueName: plan.uniqueName,
+    filePath,
+    stateFilePath,
+    plan,
+    executionState,
+  };
+}
+
+async function executeOperationInternal(
+  operation: CustomApiSyncOperation,
+  simulate: boolean
+): Promise<CustomApiSyncOperationResult> {
+  const startedAtUtc = new Date().toISOString();
+  const startedAt = Date.now();
+
+  if (!simulate) {
+    throw new Error(
+      `Live execution for '${operation.action}' is not implemented yet. Run with simulate=true or add repository write methods first.`
+    );
+  }
+
+  const finishedAtUtc = new Date().toISOString();
+  return {
+    operationId: operation.operationId,
+    action: operation.action,
+    objectType: operation.objectType,
+    uniqueName: operation.uniqueName,
+    status: "succeeded",
+    startedAtUtc,
+    finishedAtUtc,
+    durationMs: Date.now() - startedAt,
+    message: `Simulated ${operation.action} for ${operation.uniqueName}.`,
+    simulated: true,
+  };
+}
+
+export async function executeCustomApiSyncOperation(
+  operationId: string,
+  uniqueNameArg?: string,
+  simulate = false,
+  context?: RuntimeContext
+): Promise<ExecuteSyncOperationResult> {
+  await ensureCacheFolders(context);
+
+  const uniqueName = ensureUniqueName(uniqueNameArg, await getActiveCustomApiUniqueName(context));
+  const { planFilePath, stateFilePath, plan, executionState } = await loadPlanAndState(uniqueName, context);
+
+  const operation = plan.operations.find((item) => item.operationId === operationId);
+  if (!operation) {
+    throw new Error(`Operation '${operationId}' wurde im Sync-Plan für '${uniqueName}' nicht gefunden.`);
+  }
+
+  const operationState = executionState.operations.find((item) => item.operationId === operationId);
+  if (!operationState) {
+    throw new Error(`Operation '${operationId}' wurde im Sync-State für '${uniqueName}' nicht gefunden.`);
+  }
+
+  const startedAtUtc = new Date().toISOString();
+  operationState.status = "running";
+  operationState.startedAtUtc = startedAtUtc;
+
+  if (!executionState.startedAtUtc) {
+    executionState.startedAtUtc = startedAtUtc;
+  }
+
+  executionState.status = "running";
+  await writeJsonFile(stateFilePath, executionState);
+
+  try {
+    const result = await executeOperationInternal(operation, simulate);
+
+    operationState.status = result.status;
+    operationState.finishedAtUtc = result.finishedAtUtc;
+    operationState.durationMs = result.durationMs;
+    operationState.message = result.message;
+    operationState.simulated = result.simulated;
+
+    markOverallStatus(executionState);
+
+    await writeJsonFile(stateFilePath, executionState);
+
+    return {
+      uniqueName,
+      filePath: planFilePath,
+      stateFilePath,
+      result,
+      executionState,
+    };
+  } catch (error) {
+    const finishedAtUtc = new Date().toISOString();
+    const errorObject = buildErrorObject(error);
+
+    const result: CustomApiSyncOperationResult = {
+      operationId: operation.operationId,
+      action: operation.action,
+      objectType: operation.objectType,
+      uniqueName: operation.uniqueName,
+      status: "failed",
+      startedAtUtc,
+      finishedAtUtc,
+      durationMs: 0,
+      message: `Execution failed for ${operation.action}.`,
+      simulated: simulate,
+      error: errorObject,
+    };
+
+    operationState.status = "failed";
+    operationState.finishedAtUtc = finishedAtUtc;
+    operationState.durationMs = 0;
+    operationState.message = result.message;
+    operationState.simulated = simulate;
+    operationState.error = errorObject;
+    executionState.status = "failed";
+    executionState.finishedAtUtc = finishedAtUtc;
+
+    await writeJsonFile(stateFilePath, executionState);
+
+    return {
+      uniqueName,
+      filePath: planFilePath,
+      stateFilePath,
+      result,
+      executionState,
+    };
+  }
+}
+
+export async function executeCustomApiSyncPlan(
+  uniqueNameArg?: string,
+  simulate = false,
+  context?: RuntimeContext
+): Promise<ExecuteSyncPlanResult> {
+  await ensureCacheFolders(context);
+
+  const uniqueName = ensureUniqueName(uniqueNameArg, await getActiveCustomApiUniqueName(context));
+  const { planFilePath, stateFilePath, plan } = await loadPlanAndState(uniqueName, context);
+
+  for (const operation of plan.operations.sort((a, b) => a.sequence - b.sequence)) {
+    const opResult = await executeCustomApiSyncOperation(operation.operationId, uniqueName, simulate, context);
+    if (opResult.result.status === "failed") {
+      return {
+        uniqueName,
+        filePath: planFilePath,
+        stateFilePath,
+        executionState: opResult.executionState,
+      };
+    }
+  }
+
+  const finalState = await readJsonFile<CustomApiSyncExecutionState>(stateFilePath);
+  markOverallStatus(finalState);
+
+  if (finalState.status === "succeeded" && !finalState.finishedAtUtc) {
+    finalState.finishedAtUtc = new Date().toISOString();
+    await writeJsonFile(stateFilePath, finalState);
+  }
+
+  return {
+    uniqueName,
+    filePath: planFilePath,
+    stateFilePath,
+    executionState: finalState,
   };
 }

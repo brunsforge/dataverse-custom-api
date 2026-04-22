@@ -4,10 +4,16 @@ import type {
   CustomApiSummaryModel,
 } from "../models/customApiModels.js";
 import type {
+  BuildCustomApiSyncPlanOptions,
+  BuildCustomApiSyncPlanResult,
   ConnectOptions,
   ConnectResult,
   DiffCustomApiOptions,
   DiffCustomApiResult,
+  ExecuteCustomApiSyncOperationOptions,
+  ExecuteCustomApiSyncOperationResult,
+  ExecuteCustomApiSyncPlanOptions,
+  ExecuteCustomApiSyncPlanResult,
   ExportCustomApiOptions,
   ExportCustomApiResult,
   GetCurrentEnvironmentResult,
@@ -19,8 +25,11 @@ import type {
 } from "../models/public-types.js";
 import type { RuntimeContext } from "../models/runtime-context.js";
 import {
+  buildCustomApiSyncPlan,
   connectToEnvironment,
   diffCustomApi,
+  executeCustomApiSyncOperation,
+  executeCustomApiSyncPlan,
   exportCustomApi,
   getActiveCustomApiUniqueName,
   getCurrentCustomApi,
@@ -46,6 +55,15 @@ export interface CoreFacade {
     options?: LoadLocalCustomApiCatalogOptions
   ): Promise<LoadLocalCustomApiCatalogResult>;
   diffCustomApi(options?: DiffCustomApiOptions): Promise<DiffCustomApiResult>;
+  buildCustomApiSyncPlan(
+    options?: BuildCustomApiSyncPlanOptions
+  ): Promise<BuildCustomApiSyncPlanResult>;
+  executeCustomApiSyncOperation(
+    options: ExecuteCustomApiSyncOperationOptions
+  ): Promise<ExecuteCustomApiSyncOperationResult>;
+  executeCustomApiSyncPlan(
+    options?: ExecuteCustomApiSyncPlanOptions
+  ): Promise<ExecuteCustomApiSyncPlanResult>;
 }
 
 export function createCoreFacade(context?: RuntimeContext): CoreFacade {
@@ -96,6 +114,33 @@ export function createCoreFacade(context?: RuntimeContext): CoreFacade {
       options?: DiffCustomApiOptions
     ): Promise<DiffCustomApiResult> {
       return diffCustomApi(options?.uniqueName, context);
+    },
+
+    async buildCustomApiSyncPlan(
+      options?: BuildCustomApiSyncPlanOptions
+    ): Promise<BuildCustomApiSyncPlanResult> {
+      return buildCustomApiSyncPlan(options?.uniqueName, context);
+    },
+
+    async executeCustomApiSyncOperation(
+      options: ExecuteCustomApiSyncOperationOptions
+    ): Promise<ExecuteCustomApiSyncOperationResult> {
+      return executeCustomApiSyncOperation(
+        options.operationId,
+        options.uniqueName,
+        options.simulate ?? false,
+        context
+      );
+    },
+
+    async executeCustomApiSyncPlan(
+      options?: ExecuteCustomApiSyncPlanOptions
+    ): Promise<ExecuteCustomApiSyncPlanResult> {
+      return executeCustomApiSyncPlan(
+        options?.uniqueName,
+        options?.simulate ?? false,
+        context
+      );
     },
   };
 }
