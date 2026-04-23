@@ -1,5 +1,6 @@
 import path from "node:path";
 import { unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { DataverseClient } from "../api/dataverseClient.js";
 import { CustomApiRepository } from "../api/customApiRepository.js";
 import type { EnvironmentCache, ActiveApiCache } from "../models/configModels.js";
@@ -21,6 +22,10 @@ import type {
   SemanticDiffFieldChange,
 } from "../models/customApiModels.js";
 import type { RuntimeContext } from "../models/runtime-context.js";
+import type {
+  CheckCustomApiMetadataResult,
+  MetadataMismatchItem,
+} from "../models/public-types.js";
 import { loadAuthConfig } from "../auth/authConfig.js";
 import { ensureCacheFolders, readJsonFile, writeJsonFile, fileExists } from "../utils/fileSystem.js";
 import {
@@ -81,10 +86,7 @@ export interface ExecuteSyncPlanResult {
   executionState: CustomApiSyncExecutionState;
 }
 
-function getCustomApiArtifactFilePath(
-  uniqueName: string,
-  outputRoot: string
-): string {
+function getCustomApiArtifactFilePath(uniqueName: string, outputRoot: string): string {
   return path.join(outputRoot, `${uniqueName}.json`);
 }
 
@@ -366,10 +368,7 @@ function buildEmptyCounter(): CustomApiSemanticDiffCounter {
   };
 }
 
-function incrementCounter(
-  counter: CustomApiSemanticDiffCounter,
-  kind: CustomApiChangeKind
-): void {
+function incrementCounter(counter: CustomApiSemanticDiffCounter, kind: CustomApiChangeKind): void {
   counter[kind] += 1;
 }
 
@@ -499,7 +498,7 @@ function ensureUniqueName(
 
 function buildOperationId(sequence: number, action: string, uniqueName: string): string {
   const seq = String(sequence).padStart(4, "0");
-  return `op-${seq}-${action}-${uniqueName}`;
+  return `op-${seq}-${action}-${uniqueName}-${randomUUID()}`;
 }
 
 function createExecutionState(plan: CustomApiSyncPlan): CustomApiSyncExecutionState {
@@ -549,7 +548,10 @@ function markOverallStatus(state: CustomApiSyncExecutionState): void {
     return;
   }
 
-  if (state.operations.length > 0 && state.operations.every((operation) => operation.status === "succeeded")) {
+  if (
+    state.operations.length > 0 &&
+    state.operations.every((operation) => operation.status === "succeeded")
+  ) {
     state.status = "succeeded";
     if (!state.finishedAtUtc) {
       state.finishedAtUtc = new Date().toISOString();
@@ -564,8 +566,6 @@ function markOverallStatus(state: CustomApiSyncExecutionState): void {
 
   state.status = "pending";
 }
-
-
 
 async function loadPlanAndState(
   uniqueName: string,
@@ -639,13 +639,25 @@ function buildPlanFromDiff(diff: CustomApiSemanticDiffResult): CustomApiSyncPlan
 
     for (const request of diff.requestParameters) {
       if (request.local) {
-        pushOperation("createRequestParameter", "requestParameter", request.uniqueName, request.kind === "create" ? "new" : "parentRecreate", true);
+        pushOperation(
+          "createRequestParameter",
+          "requestParameter",
+          request.uniqueName,
+          request.kind === "create" ? "new" : "parentRecreate",
+          true
+        );
       }
     }
 
     for (const response of diff.responseProperties) {
       if (response.local) {
-        pushOperation("createResponseProperty", "responseProperty", response.uniqueName, response.kind === "create" ? "new" : "parentRecreate", true);
+        pushOperation(
+          "createResponseProperty",
+          "responseProperty",
+          response.uniqueName,
+          response.kind === "create" ? "new" : "parentRecreate",
+          true
+        );
       }
     }
   } else {
@@ -662,40 +674,78 @@ function buildPlanFromDiff(diff: CustomApiSemanticDiffResult): CustomApiSyncPlan
 
     for (const item of diff.requestParameters) {
       if (item.kind === "delete" || item.kind === "recreate") {
-        pushOperation("deleteRequestParameter", "requestParameter", item.uniqueName, item.kind === "recreate" ? "recreate" : "deleted", item.kind === "recreate");
+        pushOperation(
+          "deleteRequestParameter",
+          "requestParameter",
+          item.uniqueName,
+          item.kind === "recreate" ? "recreate" : "deleted",
+          item.kind === "recreate"
+        );
       }
     }
 
     for (const item of diff.responseProperties) {
       if (item.kind === "delete" || item.kind === "recreate") {
-        pushOperation("deleteResponseProperty", "responseProperty", item.uniqueName, item.kind === "recreate" ? "recreate" : "deleted", item.kind === "recreate");
+        pushOperation(
+          "deleteResponseProperty",
+          "responseProperty",
+          item.uniqueName,
+          item.kind === "recreate" ? "recreate" : "deleted",
+          item.kind === "recreate"
+        );
       }
     }
 
     for (const item of diff.requestParameters) {
       if (item.kind === "update") {
-        pushOperation("updateRequestParameter", "requestParameter", item.uniqueName, "changed", false, item.fieldChanges.map((change) => change.field));
+        pushOperation(
+          "updateRequestParameter",
+          "requestParameter",
+          item.uniqueName,
+          "changed",
+          false,
+          item.fieldChanges.map((change) => change.field)
+        );
       }
 
       if (item.kind === "create" || item.kind === "recreate") {
-        pushOperation("createRequestParameter", "requestParameter", item.uniqueName, item.kind === "create" ? "new" : "recreate", item.kind === "recreate");
+        pushOperation(
+          "createRequestParameter",
+          "requestParameter",
+          item.uniqueName,
+          item.kind === "create" ? "new" : "recreate",
+          item.kind === "recreate"
+        );
       }
     }
 
     for (const item of diff.responseProperties) {
       if (item.kind === "update") {
-        pushOperation("updateResponseProperty", "responseProperty", item.uniqueName, "changed", false, item.fieldChanges.map((change) => change.field));
+        pushOperation(
+          "updateResponseProperty",
+          "responseProperty",
+          item.uniqueName,
+          "changed",
+          false,
+          item.fieldChanges.map((change) => change.field)
+        );
       }
 
       if (item.kind === "create" || item.kind === "recreate") {
-        pushOperation("createResponseProperty", "responseProperty", item.uniqueName, item.kind === "create" ? "new" : "recreate", item.kind === "recreate");
+        pushOperation(
+          "createResponseProperty",
+          "responseProperty",
+          item.uniqueName,
+          item.kind === "create" ? "new" : "recreate",
+          item.kind === "recreate"
+        );
       }
     }
   }
 
   return {
     schemaVersion: "1.0.0",
-    planId: `plan-${new Date().toISOString().replace(/[:.]/g, "-")}`,
+    planId: `plan-${randomUUID()}`,
     uniqueName: diff.uniqueName,
     generatedAtUtc: new Date().toISOString(),
     requiresDestructiveChanges:
@@ -704,6 +754,40 @@ function buildPlanFromDiff(diff: CustomApiSemanticDiffResult): CustomApiSyncPlan
       diff.responseProperties.some((item) => item.kind === "delete" || item.kind === "recreate"),
     operations,
   };
+}
+
+function findLocalCustomApi(catalog: CustomApiCatalogModel, uniqueName: string): CustomApiDefinitionModel {
+  const api = catalog.customApis.find((item) => item.uniqueName === uniqueName) ?? catalog.customApis[0];
+  if (!api) {
+    throw new Error(`Lokale JSON-Datei für '${uniqueName}' enthält keine Custom API.`);
+  }
+  return api;
+}
+
+function findLocalRequestParameter(
+  catalog: CustomApiCatalogModel,
+  apiUniqueName: string,
+  uniqueName: string
+): CustomApiParameterModel {
+  const api = findLocalCustomApi(catalog, apiUniqueName);
+  const item = api.requestParameters.find((p) => p.uniqueName === uniqueName);
+  if (!item) {
+    throw new Error(`Lokaler Request-Parameter '${uniqueName}' wurde nicht gefunden.`);
+  }
+  return item;
+}
+
+function findLocalResponseProperty(
+  catalog: CustomApiCatalogModel,
+  apiUniqueName: string,
+  uniqueName: string
+): CustomApiResponsePropertyModel {
+  const api = findLocalCustomApi(catalog, apiUniqueName);
+  const item = api.responseProperties.find((p) => p.uniqueName === uniqueName);
+  if (!item) {
+    throw new Error(`Lokale Response-Property '${uniqueName}' wurde nicht gefunden.`);
+  }
+  return item;
 }
 
 export async function diffCustomApi(
@@ -792,6 +876,70 @@ export async function diffCustomApi(
   };
 }
 
+export async function checkCustomApiMetadataConsistency(
+  uniqueNameArg?: string,
+  context?: RuntimeContext
+): Promise<CheckCustomApiMetadataResult> {
+  try {
+    const diff = await diffCustomApi(uniqueNameArg, context);
+    const mismatches: MetadataMismatchItem[] = [];
+
+    for (const change of diff.customApi.fieldChanges) {
+      mismatches.push({
+        objectType: "customApi",
+        uniqueName: diff.uniqueName,
+        field: change.field,
+        localValue: change.localValue,
+        remoteValue: change.remoteValue,
+        requiresRecreate: change.isImmutable,
+      });
+    }
+
+    for (const item of diff.requestParameters) {
+      for (const change of item.fieldChanges) {
+        mismatches.push({
+          objectType: "requestParameter",
+          uniqueName: item.uniqueName,
+          field: change.field,
+          localValue: change.localValue,
+          remoteValue: change.remoteValue,
+          requiresRecreate: change.isImmutable,
+        });
+      }
+    }
+
+    for (const item of diff.responseProperties) {
+      for (const change of item.fieldChanges) {
+        mismatches.push({
+          objectType: "responseProperty",
+          uniqueName: item.uniqueName,
+          field: change.field,
+          localValue: change.localValue,
+          remoteValue: change.remoteValue,
+          requiresRecreate: change.isImmutable,
+        });
+      }
+    }
+
+    return {
+      uniqueName: diff.uniqueName,
+      status: mismatches.length === 0 ? "ok" : "warning",
+      message:
+        mismatches.length === 0
+          ? "Keine Metadaten-Abweichungen gefunden."
+          : `${mismatches.length} Metadaten-Abweichungen gefunden.`,
+      mismatches,
+    };
+  } catch (error) {
+    return {
+      uniqueName: uniqueNameArg ?? "unknown",
+      status: "error",
+      message: error instanceof Error ? error.message : String(error),
+      mismatches: [],
+    };
+  }
+}
+
 export async function buildCustomApiSyncPlan(
   uniqueNameArg?: string,
   context?: RuntimeContext
@@ -819,15 +967,81 @@ export async function buildCustomApiSyncPlan(
 
 async function executeOperationInternal(
   operation: CustomApiSyncOperation,
-  simulate: boolean
+  uniqueName: string,
+  simulate: boolean,
+  context?: RuntimeContext
 ): Promise<CustomApiSyncOperationResult> {
   const startedAtUtc = new Date().toISOString();
   const startedAt = Date.now();
 
-  if (!simulate) {
-    throw new Error(
-      `Live execution for '${operation.action}' is not implemented yet. Run with simulate=true or add repository write methods first.`
-    );
+  if (simulate) {
+    const finishedAtUtc = new Date().toISOString();
+    return {
+      operationId: operation.operationId,
+      action: operation.action,
+      objectType: operation.objectType,
+      uniqueName: operation.uniqueName,
+      status: "succeeded",
+      startedAtUtc,
+      finishedAtUtc,
+      durationMs: Date.now() - startedAt,
+      message: `Simulated ${operation.action} for ${operation.uniqueName}.`,
+      simulated: true,
+    };
+  }
+
+  const env = await getCurrentEnvironment(context);
+  const client = new DataverseClient(env.environmentUrl, context);
+  const repository = new CustomApiRepository(client);
+  const localCatalog = await loadLocalCustomApiCatalog(uniqueName, context);
+  const localApi = findLocalCustomApi(localCatalog, uniqueName);
+
+  switch (operation.action) {
+    case "createCustomApi":
+      await repository.createCustomApi(localApi);
+      break;
+    case "updateCustomApi":
+      await repository.updateCustomApi(localApi, operation.changedFields);
+      break;
+    case "deleteCustomApi":
+      await repository.deleteCustomApi(uniqueName);
+      break;
+    case "createRequestParameter":
+      await repository.createRequestParameter(
+        uniqueName,
+        findLocalRequestParameter(localCatalog, uniqueName, operation.uniqueName)
+      );
+      break;
+    case "updateRequestParameter":
+      await repository.updateRequestParameter(
+        uniqueName,
+        findLocalRequestParameter(localCatalog, uniqueName, operation.uniqueName),
+        operation.changedFields
+      );
+      break;
+    case "deleteRequestParameter":
+      await repository.deleteRequestParameter(uniqueName, operation.uniqueName);
+      break;
+    case "createResponseProperty":
+      await repository.createResponseProperty(
+        uniqueName,
+        findLocalResponseProperty(localCatalog, uniqueName, operation.uniqueName)
+      );
+      break;
+    case "updateResponseProperty":
+      await repository.updateResponseProperty(
+        uniqueName,
+        findLocalResponseProperty(localCatalog, uniqueName, operation.uniqueName),
+        operation.changedFields
+      );
+      break;
+    case "deleteResponseProperty":
+      await repository.deleteResponseProperty(uniqueName, operation.uniqueName);
+      break;
+    default: {
+      const exhaustive: never = operation.action;
+      throw new Error(`Nicht unterstützte Action '${String(exhaustive)}'.`);
+    }
   }
 
   const finishedAtUtc = new Date().toISOString();
@@ -840,8 +1054,8 @@ async function executeOperationInternal(
     startedAtUtc,
     finishedAtUtc,
     durationMs: Date.now() - startedAt,
-    message: `Simulated ${operation.action} for ${operation.uniqueName}.`,
-    simulated: true,
+    message: `${operation.action} for ${operation.uniqueName} completed successfully.`,
+    simulated: false,
   };
 }
 
@@ -878,7 +1092,7 @@ export async function executeCustomApiSyncOperation(
   await writeJsonFile(stateFilePath, executionState);
 
   try {
-    const result = await executeOperationInternal(operation, simulate);
+    const result = await executeOperationInternal(operation, uniqueName, simulate, context);
 
     operationState.status = result.status;
     operationState.finishedAtUtc = result.finishedAtUtc;
@@ -887,7 +1101,6 @@ export async function executeCustomApiSyncOperation(
     operationState.simulated = result.simulated;
 
     markOverallStatus(executionState);
-
     await writeJsonFile(stateFilePath, executionState);
 
     return {
@@ -946,8 +1159,14 @@ export async function executeCustomApiSyncPlan(
   const uniqueName = ensureUniqueName(uniqueNameArg, await getActiveCustomApiUniqueName(context));
   const { planFilePath, stateFilePath, plan } = await loadPlanAndState(uniqueName, context);
 
-  for (const operation of plan.operations.sort((a, b) => a.sequence - b.sequence)) {
-    const opResult = await executeCustomApiSyncOperation(operation.operationId, uniqueName, simulate, context);
+  for (const operation of [...plan.operations].sort((a, b) => a.sequence - b.sequence)) {
+    const opResult = await executeCustomApiSyncOperation(
+      operation.operationId,
+      uniqueName,
+      simulate,
+      context
+    );
+
     if (opResult.result.status === "failed") {
       return {
         uniqueName,
@@ -960,11 +1179,7 @@ export async function executeCustomApiSyncPlan(
 
   const finalState = await readJsonFile<CustomApiSyncExecutionState>(stateFilePath);
   markOverallStatus(finalState);
-
-  if (finalState.status === "succeeded" && !finalState.finishedAtUtc) {
-    finalState.finishedAtUtc = new Date().toISOString();
-    await writeJsonFile(stateFilePath, finalState);
-  }
+  await writeJsonFile(stateFilePath, finalState);
 
   return {
     uniqueName,
