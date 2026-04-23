@@ -770,7 +770,7 @@ function findLocalRequestParameter(
   uniqueName: string
 ): CustomApiParameterModel {
   const api = findLocalCustomApi(catalog, apiUniqueName);
-  const item = api.requestParameters.find((p) => p.uniqueName === uniqueName);
+  const item = (api.requestParameters ?? []).find((p) => p.uniqueName === uniqueName);
   if (!item) {
     throw new Error(`Lokaler Request-Parameter '${uniqueName}' wurde nicht gefunden.`);
   }
@@ -783,7 +783,7 @@ function findLocalResponseProperty(
   uniqueName: string
 ): CustomApiResponsePropertyModel {
   const api = findLocalCustomApi(catalog, apiUniqueName);
-  const item = api.responseProperties.find((p) => p.uniqueName === uniqueName);
+  const item = (api.responseProperties ?? []).find((p) => p.uniqueName === uniqueName);
   if (!item) {
     throw new Error(`Lokale Response-Property '${uniqueName}' wurde nicht gefunden.`);
   }
@@ -826,16 +826,16 @@ export async function diffCustomApi(
 
   const requestParameterDiffs = diffNamedCollection(
     "requestParameter",
-    localApi.requestParameters,
-    remoteApi.requestParameters,
+    localApi.requestParameters ?? [],
+    remoteApi.requestParameters ?? [],
     REQUEST_PARAMETER_COMPARE_FIELDS as string[],
     REQUEST_PARAMETER_RECREATE_FIELDS as string[]
   );
 
   const responsePropertyDiffs = diffNamedCollection(
     "responseProperty",
-    localApi.responseProperties,
-    remoteApi.responseProperties,
+    localApi.responseProperties ?? [],
+    remoteApi.responseProperties ?? [],
     RESPONSE_PROPERTY_COMPARE_FIELDS as string[],
     RESPONSE_PROPERTY_RECREATE_FIELDS as string[]
   );
