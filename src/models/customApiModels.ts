@@ -1,25 +1,11 @@
 export const CUSTOM_API_SCHEMA_VERSION = "1.0";
 
 export type CustomApiBindingType = "Global" | "Entity" | "EntityCollection";
-export type CustomApiAllowedProcessingStepType =
-  | "None"
-  | "AsyncOnly"
-  | "SyncAndAsync";
-
+export type CustomApiAllowedProcessingStepType = "None" | "AsyncOnly" | "SyncAndAsync";
 export type CustomApiValueType =
-  | "Boolean"
-  | "DateTime"
-  | "Decimal"
-  | "Entity"
-  | "EntityCollection"
-  | "EntityReference"
-  | "Float"
-  | "Integer"
-  | "Money"
-  | "Picklist"
-  | "String"
-  | "StringArray"
-  | "Guid";
+  | "Boolean" | "DateTime" | "Decimal" | "Entity" | "EntityCollection"
+  | "EntityReference" | "Float" | "Integer" | "Money" | "Picklist"
+  | "String" | "StringArray" | "Guid";
 
 export interface CustomApiParameterModel {
   uniqueName: string;
@@ -87,12 +73,7 @@ export interface CustomApiSummaryModel {
   pluginTypeName?: string;
 }
 
-export type CustomApiChangeKind =
-  | "none"
-  | "create"
-  | "update"
-  | "delete"
-  | "recreate";
+export type CustomApiChangeKind = "none" | "create" | "update" | "delete" | "recreate";
 
 export interface SemanticDiffFieldChange {
   field: string;
@@ -139,22 +120,11 @@ export interface CustomApiSemanticDiffResult {
 }
 
 export type CustomApiSyncAction =
-  | "createCustomApi"
-  | "updateCustomApi"
-  | "deleteCustomApi"
-  | "createRequestParameter"
-  | "updateRequestParameter"
-  | "deleteRequestParameter"
-  | "createResponseProperty"
-  | "updateResponseProperty"
-  | "deleteResponseProperty";
+  | "createCustomApi" | "updateCustomApi" | "deleteCustomApi"
+  | "createRequestParameter" | "updateRequestParameter" | "deleteRequestParameter"
+  | "createResponseProperty" | "updateResponseProperty" | "deleteResponseProperty";
 
-export type CustomApiSyncOperationStatus =
-  | "pending"
-  | "running"
-  | "succeeded"
-  | "failed"
-  | "skipped";
+export type CustomApiSyncOperationStatus = "pending" | "running" | "succeeded" | "failed" | "skipped";
 
 export interface CustomApiSyncOperation {
   operationId: string;

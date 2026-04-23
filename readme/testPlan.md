@@ -3,21 +3,14 @@ Sync-Plan und Ausführung über die CLI testen
 
 Die neuen Befehle bauen auf dem bestehenden Ablauf auf:
 
-1.  Mit einem Environment verbinden
-    
-2.  Eine Custom API auswählen
-    
-3.  Die aktuelle Definition lokal exportieren
-    
-4.  Optional die lokale JSON-Datei ändern
-    
-5.  Den semantischen Diff prüfen
-    
-6.  Einen Sync-Plan erzeugen
-    
+1.  Mit einem Environment verbinden    
+2.  Eine Custom API auswählen    
+3.  Die aktuelle Definition lokal exportieren    
+4.  Optional die lokale JSON-Datei ändern    
+5.  Den semantischen Diff prüfen    
+6.  Einen Sync-Plan erzeugen    
 7.  Einzelne Operationen oder den ganzen Plan im **Simulationsmodus** ausführen
     
-
 > Hinweis: Im aktuellen Stand führen exec-op und exec-plan standardmäßig nur dann erfolgreich aus, wenn --simulate gesetzt ist. Die echte Live-Ausführung gegen Dataverse ist noch nicht implementiert.
 
 ### 1\. Mit einem Environment verbinden
@@ -83,7 +76,6 @@ Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQL
 Der Befehl erzeugt zwei lokale Dateien:
 
 *   .syncplan.json
-    
 *   .syncstate.json
     
 
@@ -146,13 +138,8 @@ Kompletter Ausführungsstatus als JSON:
 Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   ccsm api exec-plan --simulate --json   `
 
 ### Erwartetes Verhalten
-
 *   api diff zeigt semantische Änderungen wie update, create, delete, recreate
-    
 *   api plan erzeugt eine geordnete Operationsliste
-    
 *   api exec-op --simulate setzt genau **eine** Operation im State auf succeeded oder failed
-    
 *   api exec-plan --simulate arbeitet den ganzen Plan der Reihe nach ab
-    
 *   Die State-Datei kann von der VS Code Extension gelesen werden, um Fortschritt und Fehler anzuzeigen
