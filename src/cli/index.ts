@@ -17,13 +17,25 @@ import { runApiExecuteOperationCommand } from "./commands/api-exec-op.js";
 import { runApiExecutePlanCommand } from "./commands/api-exec-plan.js";
 import { runApiCheckMetadataCommand } from "./commands/api-check-metadata.js";
 import { formatCliError } from "../utils/errorHelpers.js";
+import { readFileSync } from "fs";
+import { join } from "path";
+
+function getPackageVersion(): string {
+  try {
+    const packageJsonPath = join(__dirname, "../../package.json");
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+    return packageJson.version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
 
 const program = new Command();
 
 program
   .name("dvc")
   .description("CLI for Dataverse Custom API Management")
-  .version("1.0.0");
+  .version(getPackageVersion());
 
 program
   .command("connect")
