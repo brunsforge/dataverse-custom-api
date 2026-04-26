@@ -13,8 +13,8 @@ npm install -g @brunsforge/dataverse-custom-api
 Or from source:
 
 ```bash
-git clone https://github.com/brunsforge/dataverse-custom-api-cli.git
-cd dataverse-custom-api-cli
+git clone https://github.com/brunsforge/dataverse-custom-api.git
+cd dataverse-custom-api
 npm install
 npm run build
 npm link
@@ -453,8 +453,8 @@ npm install -g @brunsforge/dataverse-custom-api
 Oder aus dem Quellcode:
 
 ```bash
-git clone https://github.com/brunsforge/dataverse-custom-api-cli.git
-cd dataverse-custom-api-cli
+git clone https://github.com/brunsforge/dataverse-custom-api.git
+cd dataverse-custom-api
 npm install
 npm run build
 npm link
@@ -870,7 +870,7 @@ Andreas Brunsmann
 
 - E-Mail: info@brunsforge.com
 - GitHub: https://github.com/brunsforge
-- Repository: https://github.com/brunsforge/dataverse-custom-api-cli
+- Repository: https://github.com/brunsforge/dataverse-custom-api
 
 ## Mitwirkende
 

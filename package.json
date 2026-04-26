@@ -31,12 +31,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/brunsforge/dataverse-custom-api-cli"
+    "url": "https://github.com/brunsforge/dataverse-custom-api"
   },
   "bugs": {
-    "url": "https://github.com/brunsforge/dataverse-custom-api-cli/issues"
+    "url": "https://github.com/brunsforge/dataverse-custom-api/issues"
   },
-  "homepage": "https://github.com/brunsforge/dataverse-custom-api-cli#readme",
+  "homepage": "https://github.com/brunsforge/dataverse-custom-api#readme",
   "files": [
     "dist",
     "src",
