@@ -868,7 +868,7 @@ MIT
 
 Andreas Brunsmann
 
-- E-Mail: info@brunsforge.com
+- E-Mail: oss@andreasbrunsmann.de
 - GitHub: https://github.com/brunsforge
 - Repository: https://github.com/brunsforge/dataverse-custom-api
 
