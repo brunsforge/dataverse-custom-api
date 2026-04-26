@@ -21,9 +21,9 @@ import { formatCliError } from "../utils/errorHelpers.js";
 const program = new Command();
 
 program
-  .name("ccsm")
-  .description("CLI für Dataverse Custom API Management")
-  .version("0.1.0");
+  .name("dvc")
+  .description("CLI for Dataverse Custom API Management")
+  .version("1.0.0");
 
 program
   .command("connect")

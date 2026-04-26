@@ -1,11 +1,11 @@
 {
-  "name": "ccdvcustomapi",
+  "name": "@brunsforge/dataverse-custom-api",
   "version": "1.0.0",
   "description": "CLI tool for managing Dataverse Custom APIs - export, edit, and sync Custom API definitions between local JSON files and Dataverse environments",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "ccsm": "dist/cli/index.js"
+    "dvc": "dist/cli/index.js"
   },
   "exports": {
     ".": {
@@ -27,14 +27,23 @@
     "microsoft",
     "crm"
   ],
-  "author": "Andreas Brunsmann <npm@andreasbrunsmann.de>",
+  "author": "Andreas Brunsmann <info@brunsforge.com> (https://github.com/brunsforge)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brunsforge/dataverse-custom-api-cli"
+  },
+  "bugs": {
+    "url": "https://github.com/brunsforge/dataverse-custom-api-cli/issues"
+  },
+  "homepage": "https://github.com/brunsforge/dataverse-custom-api-cli#readme",
   "files": [
     "dist",
     "src",
     "tsconfig.json",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "type": "module",
   "dependencies": {

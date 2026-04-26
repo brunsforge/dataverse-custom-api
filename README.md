@@ -1,4 +1,4 @@
-# CCDV Custom API CLI
+# Dataverse Custom API CLI
 
 A Node.js/TypeScript CLI for managing Dataverse Custom APIs. It enables reading, exporting, editing, and synchronizing Custom APIs between local JSON files and Dataverse environments.
 
@@ -7,14 +7,14 @@ The published package contains both compiled `dist/` output and the TypeScript `
 ## Installation
 
 ```bash
-npm install -g ccdvcustomapi
+npm install -g @brunsforge/dataverse-custom-api
 ```
 
 Or from source:
 
 ```bash
-git clone <repository-url>
-cd CCDVCustomAPI
+git clone https://github.com/brunsforge/dataverse-custom-api-cli.git
+cd dataverse-custom-api-cli
 npm install
 npm run build
 npm link
@@ -103,7 +103,7 @@ Create an `auth.json` file in the repository root based on one of the sample fil
 ### Connect to an environment
 
 ```bash
-ccsm connect -u "https://your-org.crm.dynamics.com"
+dvc connect -u "https://your-org.crm.dynamics.com"
 ```
 
 **Output:**
@@ -117,7 +117,7 @@ Cache file: /path/to/cache/environment.json
 With JSON output:
 
 ```bash
-ccsm connect -u "https://your-org.crm.dynamics.com" --json
+dvc connect -u "https://your-org.crm.dynamics.com" --json
 ```
 
 ## Environment management
@@ -125,7 +125,7 @@ ccsm connect -u "https://your-org.crm.dynamics.com" --json
 ### List environments
 
 ```bash
-ccsm env list
+dvc env list
 ```
 
 **Output:**
@@ -138,7 +138,7 @@ ccsm env list
 ### Show current environment
 
 ```bash
-ccsm env current
+dvc env current
 ```
 
 **Output:**
@@ -151,7 +151,7 @@ URL: https://prod.crm.dynamics.com
 ### Switch environment
 
 ```bash
-ccsm env use -i env-002
+dvc env use -i env-002
 ```
 
 **Output:**
@@ -163,7 +163,7 @@ Active environment set: env-002
 ### Remove environment
 
 ```bash
-ccsm env remove -i env-001
+dvc env remove -i env-001
 ```
 
 ## Custom API management
@@ -171,7 +171,7 @@ ccsm env remove -i env-001
 ### List Custom APIs
 
 ```bash
-ccsm api list
+dvc api list
 ```
 
 **Output:**
@@ -185,13 +185,13 @@ ccsm api list
 With JSON output:
 
 ```bash
-ccsm api list --json
+dvc api list --json
 ```
 
 ### Show active Custom API
 
 ```bash
-ccsm api current
+dvc api current
 ```
 
 **Output:**
@@ -204,7 +204,7 @@ Cache file: /path/to/cache/api/ccsm_MyCustomApi.json
 ### Set active Custom API
 
 ```bash
-ccsm api use -n ccsm_MyCustomApi
+dvc api use -n ccsm_MyCustomApi
 ```
 
 **Output:**
@@ -217,9 +217,9 @@ Cache file: /path/to/cache/api/ccsm_MyCustomApi.json
 ### Export Custom API
 
 ```bash
-ccsm api export
+dvc api export
 # or specifically:
-ccsm api export -n ccsm_MyCustomApi
+dvc api export -n ccsm_MyCustomApi
 ```
 
 **Output:**
@@ -231,9 +231,9 @@ Exported: /path/to/output/ccsm_MyCustomApi.json
 ### Compare local changes (diff)
 
 ```bash
-ccsm api diff
+dvc api diff
 # or specifically:
-ccsm api diff -n ccsm_MyCustomApi
+dvc api diff -n ccsm_MyCustomApi
 ```
 
 **Output:**
@@ -249,9 +249,9 @@ Use `--json` for machine-readable diff output.
 ### Create sync plan
 
 ```bash
-ccsm api plan
+dvc api plan
 # or specifically:
-ccsm api plan -n ccsm_MyCustomApi
+dvc api plan -n ccsm_MyCustomApi
 ```
 
 **Output:**
@@ -270,7 +270,7 @@ Requires destructive changes: No
 ### Execute a single operation
 
 ```bash
-ccsm api exec-op --operation-id "op-0001-updateCustomApi-ccsm_MyCustomApi" --simulate
+dvc api exec-op --operation-id "op-0001-updateCustomApi-ccsm_MyCustomApi" --simulate
 ```
 
 **Output:**
@@ -285,7 +285,7 @@ Without `--simulate` for real execution (not implemented yet).
 ### Execute full plan
 
 ```bash
-ccsm api exec-plan --simulate
+dvc api exec-plan --simulate
 ```
 
 **Output:**
@@ -303,7 +303,7 @@ State file: /path/to/state/ccsm_MyCustomApi.syncstate.json
 ### Check metadata
 
 ```bash
-ccsm api check-metadata
+dvc api check-metadata
 ```
 
 Checks whether the local definition differs from the current Dataverse metadata.
@@ -311,9 +311,9 @@ Checks whether the local definition differs from the current Dataverse metadata.
 ### Remove local artifacts
 
 ```bash
-ccsm api remove
+dvc api remove
 # or specifically:
-ccsm api remove -n ccsm_MyCustomApi
+dvc api remove -n ccsm_MyCustomApi
 ```
 
 ## Typical workflow
@@ -326,32 +326,32 @@ cp auth.devicecode.example.json auth.json
 # edit auth.json with your tenant ID and client ID
 
 # Connect to an environment
-ccsm connect -u "https://your-org.crm.dynamics.com"
+dvc connect -u "https://your-org.crm.dynamics.com"
 ```
 
 ### 2. Edit an existing Custom API
 
 ```bash
 # list APIs
-ccsm api list
+dvc api list
 
 # set an active API
-ccsm api use -n ccsm_ExistingApi
+dvc api use -n ccsm_ExistingApi
 
 # export for editing
-ccsm api export
+dvc api export
 
 # edit the local JSON file (e.g. add a parameter)
 # ... edit /path/to/output/ccsm_ExistingApi.json ...
 
 # check diff
-ccsm api diff
+dvc api diff
 
 # create a sync plan
-ccsm api plan
+dvc api plan
 
 # simulate execution
-ccsm api exec-plan --simulate
+dvc api exec-plan --simulate
 ```
 
 ### 3. Create a new Custom API
@@ -361,13 +361,13 @@ ccsm api exec-plan --simulate
 # example: /path/to/output/ccsm_NewApi.json
 
 # set the API as active even if it does not exist in Dataverse yet
-ccsm api use -n ccsm_NewApi
+dvc api use -n ccsm_NewApi
 
 # create a sync plan (should include create operations)
-ccsm api plan
+dvc api plan
 
 # simulate execution
-ccsm api exec-plan --simulate
+dvc api exec-plan --simulate
 ```
 
 ## Custom API JSON structure
@@ -437,7 +437,7 @@ Andreas Brunsmann
 
 ---
 
-# CCDV Custom API CLI
+# Dataverse Custom API CLI
 
 Eine Node.js/TypeScript-basierte CLI zum Verwalten von Dataverse Custom APIs. Sie ermöglicht das Lesen, Exportieren, Bearbeiten und Synchronisieren von Custom APIs zwischen lokalen JSON-Dateien und Dataverse-Umgebungen.
 
@@ -446,14 +446,14 @@ Das veröffentlichte Paket enthält sowohl den kompilierten `dist/`-Output als a
 ## Installation
 
 ```bash
-npm install -g ccdvcustomapi
+npm install -g @brunsforge/dataverse-custom-api
 ```
 
 Oder aus dem Quellcode:
 
 ```bash
-git clone <repository-url>
-cd CCDVCustomAPI
+git clone https://github.com/brunsforge/dataverse-custom-api-cli.git
+cd dataverse-custom-api-cli
 npm install
 npm run build
 npm link
@@ -542,7 +542,7 @@ Erstelle eine `auth.json`-Datei im Projektstamm basierend auf einer der Beispiel
 ### Verbindung zu einem Environment
 
 ```bash
-ccsm connect -u "https://your-org.crm.dynamics.com"
+dvc connect -u "https://your-org.crm.dynamics.com"
 ```
 
 **Ausgabe:**
@@ -556,7 +556,7 @@ Cache-Datei: /path/to/cache/environment.json
 Mit JSON-Ausgabe:
 
 ```bash
-ccsm connect -u "https://your-org.crm.dynamics.com" --json
+dvc connect -u "https://your-org.crm.dynamics.com" --json
 ```
 
 ## Environment-Management
@@ -564,7 +564,7 @@ ccsm connect -u "https://your-org.crm.dynamics.com" --json
 ### Environments auflisten
 
 ```bash
-ccsm env list
+dvc env list
 ```
 
 **Ausgabe:**
@@ -577,7 +577,7 @@ ccsm env list
 ### Aktives Environment anzeigen
 
 ```bash
-ccsm env current
+dvc env current
 ```
 
 **Ausgabe:**
@@ -590,7 +590,7 @@ URL: https://prod.crm.dynamics.com
 ### Environment wechseln
 
 ```bash
-ccsm env use -i env-002
+dvc env use -i env-002
 ```
 
 **Ausgabe:**
@@ -602,7 +602,7 @@ Aktives Environment gesetzt: env-002
 ### Environment entfernen
 
 ```bash
-ccsm env remove -i env-001
+dvc env remove -i env-001
 ```
 
 ## Custom API-Management
@@ -610,7 +610,7 @@ ccsm env remove -i env-001
 ### Custom APIs auflisten
 
 ```bash
-ccsm api list
+dvc api list
 ```
 
 **Ausgabe:**
@@ -624,13 +624,13 @@ ccsm api list
 Mit JSON-Ausgabe:
 
 ```bash
-ccsm api list --json
+dvc api list --json
 ```
 
 ### Aktive Custom API anzeigen
 
 ```bash
-ccsm api current
+dvc api current
 ```
 
 **Ausgabe:**
@@ -643,7 +643,7 @@ Cache-Datei: /path/to/cache/api/ccsm_MyCustomApi.json
 ### Custom API als aktiv setzen
 
 ```bash
-ccsm api use -n ccsm_MyCustomApi
+dvc api use -n ccsm_MyCustomApi
 ```
 
 **Ausgabe:**
@@ -656,9 +656,9 @@ Cache-Datei: /path/to/cache/api/ccsm_MyCustomApi.json
 ### Custom API exportieren
 
 ```bash
-ccsm api export
+dvc api export
 # oder spezifisch:
-ccsm api export -n ccsm_MyCustomApi
+dvc api export -n ccsm_MyCustomApi
 ```
 
 **Ausgabe:**
@@ -670,9 +670,9 @@ Exportiert: /path/to/output/ccsm_MyCustomApi.json
 ### Lokale Änderungen prüfen (Diff)
 
 ```bash
-ccsm api diff
+dvc api diff
 # oder spezifisch:
-ccsm api diff -n ccsm_MyCustomApi
+dvc api diff -n ccsm_MyCustomApi
 ```
 
 **Ausgabe:**
@@ -688,9 +688,9 @@ Mit JSON-Ausgabe für detaillierte Analyse.
 ### Sync-Plan erstellen
 
 ```bash
-ccsm api plan
+dvc api plan
 # oder spezifisch:
-ccsm api plan -n ccsm_MyCustomApi
+dvc api plan -n ccsm_MyCustomApi
 ```
 
 **Ausgabe:**
@@ -709,7 +709,7 @@ Destruktive Änderungen erforderlich: Nein
 ### Einzelne Operation ausführen
 
 ```bash
-ccsm api exec-op --operation-id "op-0001-updateCustomApi-ccsm_MyCustomApi" --simulate
+dvc api exec-op --operation-id "op-0001-updateCustomApi-ccsm_MyCustomApi" --simulate
 ```
 
 **Ausgabe:**
@@ -724,7 +724,7 @@ Ohne `--simulate` für echte Ausführung (noch nicht implementiert).
 ### Kompletten Plan ausführen
 
 ```bash
-ccsm api exec-plan --simulate
+dvc api exec-plan --simulate
 ```
 
 **Ausgabe:**
@@ -742,7 +742,7 @@ State-Datei: /path/to/state/ccsm_MyCustomApi.syncstate.json
 ### Metadaten prüfen
 
 ```bash
-ccsm api check-metadata
+dvc api check-metadata
 ```
 
 Prüft, ob lokale Definition mit aktuellen Dataverse-Metadaten übereinstimmt.
@@ -750,9 +750,9 @@ Prüft, ob lokale Definition mit aktuellen Dataverse-Metadaten übereinstimmt.
 ### Lokale Artefakte entfernen
 
 ```bash
-ccsm api remove
+dvc api remove
 # oder spezifisch:
-ccsm api remove -n ccsm_MyCustomApi
+dvc api remove -n ccsm_MyCustomApi
 ```
 
 ## Typischer Workflow
@@ -765,32 +765,32 @@ cp auth.devicecode.example.json auth.json
 # auth.json bearbeiten mit Tenant-ID und Client-ID
 
 # Mit Environment verbinden
-ccsm connect -u "https://your-org.crm.dynamics.com"
+dvc connect -u "https://your-org.crm.dynamics.com"
 ```
 
 ### 2. Vorhandene Custom API bearbeiten
 
 ```bash
 # APIs auflisten
-ccsm api list
+dvc api list
 
 # API als aktiv setzen
-ccsm api use -n ccsm_ExistingApi
+dvc api use -n ccsm_ExistingApi
 
 # Exportieren für Bearbeitung
-ccsm api export
+dvc api export
 
 # Lokale JSON-Datei bearbeiten (z.B. Parameter hinzufügen)
 # ... edit /path/to/output/ccsm_ExistingApi.json ...
 
 # Diff prüfen
-ccsm api diff
+dvc api diff
 
 # Plan erstellen
-ccsm api plan
+dvc api plan
 
 # Simuliert ausführen
-ccsm api exec-plan --simulate
+dvc api exec-plan --simulate
 ```
 
 ### 3. Neue Custom API erstellen
@@ -800,13 +800,13 @@ ccsm api exec-plan --simulate
 # Beispiel: /path/to/output/ccsm_NewApi.json
 
 # API als aktiv setzen (auch wenn sie noch nicht in Dataverse existiert)
-ccsm api use -n ccsm_NewApi
+dvc api use -n ccsm_NewApi
 
 # Plan erstellen (wird Create-Operationen enthalten)
-ccsm api plan
+dvc api plan
 
 # Simuliert ausführen
-ccsm api exec-plan --simulate
+dvc api exec-plan --simulate
 ```
 
 ## JSON-Struktur der Custom API
