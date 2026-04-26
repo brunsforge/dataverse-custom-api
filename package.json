@@ -27,7 +27,7 @@
     "microsoft",
     "crm"
   ],
-  "author": "Andreas Brunsmann <npm@andreasbrunsmann@de>",
+  "author": "Andreas Brunsmann <npm@andreasbrunsmann.de>",
   "license": "MIT",
   "files": [
     "dist",
