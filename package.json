@@ -1,6 +1,6 @@
 {
   "name": "@brunsforge/dataverse-custom-api",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "CLI tool for managing Dataverse Custom APIs - export, edit, and sync Custom API definitions between local JSON files and Dataverse environments",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
