@@ -428,8 +428,9 @@ MIT
 
 Andreas Brunsmann
 
-- Email: andreas.brunsmann@example.com
-- GitHub: https://github.com/andreasbrunsmann
+- Email: oss@andreasbrunsmann.de
+- GitHub: https://github.com/brunsforge
+- Repository: https://github.com/brunsforge/dataverse-custom-api-cli
 
 ## Contributors
 
@@ -867,8 +868,9 @@ MIT
 
 Andreas Brunsmann
 
-- E-Mail: andreas.brunsmann@example.com
-- GitHub: https://github.com/andreasbrunsmann
+- E-Mail: info@brunsforge.com
+- GitHub: https://github.com/brunsforge
+- Repository: https://github.com/brunsforge/dataverse-custom-api-cli
 
 ## Mitwirkende
 
