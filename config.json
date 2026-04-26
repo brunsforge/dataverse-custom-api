@@ -1,5 +1,0 @@
-{
-    "mode": "dev",
-    "cachePath": ".cache",
-    "customApiOutputPath": ".cache/customapis"
-}
