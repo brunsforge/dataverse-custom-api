@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import { createRequire } from "module";
 import { runConnectCommand } from "./commands/connect.js";
 import { runEnvironmentListCommand } from "./commands/env-list.js";
 import { runEnvironmentCurrentCommand } from "./commands/env-current.js";
@@ -17,13 +18,12 @@ import { runApiExecuteOperationCommand } from "./commands/api-exec-op.js";
 import { runApiExecutePlanCommand } from "./commands/api-exec-plan.js";
 import { runApiCheckMetadataCommand } from "./commands/api-check-metadata.js";
 import { formatCliError } from "../utils/errorHelpers.js";
-import { readFileSync } from "fs";
-import { join } from "path";
+
+const require = createRequire(import.meta.url);
 
 function getPackageVersion(): string {
   try {
-    const packageJsonPath = join(__dirname, "../../package.json");
-    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+    const packageJson = require("../../package.json");
     return packageJson.version ?? "0.0.0";
   } catch {
     return "0.0.0";
