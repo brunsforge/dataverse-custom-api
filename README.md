@@ -1,6 +1,6 @@
 # Dataverse Custom API CLI
 
-A Node.js/TypeScript CLI for managing Dataverse Custom APIs. It enables reading, exporting, editing, and synchronizing Custom APIs between local JSON files and Dataverse environments.
+A Node.js/TypeScript CLI for managing Dataverse Custom APIs. It enables reading, exporting, editing, diffing, planning, and synchronizing Custom API definitions between local JSON files and Dataverse environments.
 
 The GitHub repository contains the TypeScript `src/` source code. The compiled `dist/` output is generated during build and included together with `src/` in the published npm package.
 
@@ -28,9 +28,15 @@ npm link
   - list available Custom APIs
   - export Custom APIs as local JSON artifacts
   - edit Custom API definitions locally
-  - synchronize changes back to Dataverse (create, update, delete)
-  - compute diffs and sync plans
+  - compare local definitions with Dataverse metadata
+  - create sync plans
+  - execute single sync operations
+  - execute full sync plans
+  - create, update, or delete Custom API metadata in Dataverse
+- **Simulation mode**: preview operations with `--simulate` before applying changes
 - **JSON and human-readable output**: every command supports `--json`
+
+> Warning: Commands that execute without `--simulate` may create, update, or delete Custom API metadata in the connected Dataverse environment.
 
 ## Authentication and connection
 
@@ -42,7 +48,7 @@ The CLI supports three authentication methods:
 2. **Client Secret** (for automation / app-only access)
 3. **Interactive Browser** (for browser-based login)
 
-#### Configuration
+### Configuration
 
 Create an `auth.json` file in the repository root based on one of the sample files:
 
@@ -50,7 +56,7 @@ Create an `auth.json` file in the repository root based on one of the sample fil
 - `auth.clientsecret.example.json` → Client Secret auth
 - `auth.interactivebrowser.example.json` → Interactive Browser auth
 
-##### Device Code auth
+#### Device Code auth
 
 ```json
 {
@@ -61,14 +67,15 @@ Create an `auth.json` file in the repository root based on one of the sample fil
 ```
 
 **App registration setup:**
-- Create an Azure AD App Registration
+
+- Create an Azure AD / Microsoft Entra ID App Registration
 - Add API permissions:
   - Dynamics CRM > user_impersonation
 - Add a redirect URI:
   - `https://login.microsoftonline.com/common/oauth2/nativeclient`
 - No client secret is required
 
-##### Client Secret auth
+#### Client Secret auth
 
 ```json
 {
@@ -80,14 +87,15 @@ Create an `auth.json` file in the repository root based on one of the sample fil
 ```
 
 **App registration setup:**
-- Create an Azure AD App Registration
+
+- Create an Azure AD / Microsoft Entra ID App Registration
 - Create a client secret
 - Add API permissions:
-  - Dynamics CRM > user_impersonation (for user context) OR
-  - Dynamics CRM > Organization.ReadWrite.All (for app-only access)
+  - Dynamics CRM > user_impersonation for delegated access
+  - or the required Dataverse application permissions for app-only access
 - No redirect URI is required
 
-##### Interactive Browser auth
+#### Interactive Browser auth
 
 ```json
 {
@@ -98,7 +106,8 @@ Create an `auth.json` file in the repository root based on one of the sample fil
 ```
 
 **App registration setup:**
-- Similar to Device Code, but for browser-based authentication
+
+- Similar to Device Code auth, but for browser-based authentication
 
 ### Connect to an environment
 
@@ -108,7 +117,7 @@ dvc connect -u "https://your-org.crm.dynamics.com"
 
 **Output:**
 
-```
+```text
 Connected and cached: https://your-org.crm.dynamics.com
 Auth mode: deviceCode
 Cache file: /path/to/cache/environment.json
@@ -130,7 +139,7 @@ dvc env list
 
 **Output:**
 
-```
+```text
 * env-001 (Production) -> https://prod.crm.dynamics.com
 - env-002 (Development) -> https://dev.crm.dynamics.com
 ```
@@ -143,7 +152,7 @@ dvc env current
 
 **Output:**
 
-```
+```text
 Active environment: env-001
 URL: https://prod.crm.dynamics.com
 ```
@@ -156,7 +165,7 @@ dvc env use -i env-002
 
 **Output:**
 
-```
+```text
 Active environment set: env-002
 ```
 
@@ -176,7 +185,7 @@ dvc api list
 
 **Output:**
 
-```
+```text
 * ccsm_MyCustomApi (active)
 - ccsm_AnotherApi
 - sample_CustomFunction
@@ -196,7 +205,7 @@ dvc api current
 
 **Output:**
 
-```
+```text
 Active API: ccsm_MyCustomApi
 Cache file: /path/to/cache/api/ccsm_MyCustomApi.json
 ```
@@ -209,7 +218,7 @@ dvc api use -n ccsm_MyCustomApi
 
 **Output:**
 
-```
+```text
 Active API set: ccsm_MyCustomApi
 Cache file: /path/to/cache/api/ccsm_MyCustomApi.json
 ```
@@ -224,11 +233,11 @@ dvc api export -n ccsm_MyCustomApi
 
 **Output:**
 
-```
+```text
 Exported: /path/to/output/ccsm_MyCustomApi.json
 ```
 
-### Compare local changes (diff)
+### Compare local changes
 
 ```bash
 dvc api diff
@@ -238,7 +247,7 @@ dvc api diff -n ccsm_MyCustomApi
 
 **Output:**
 
-```
+```text
 Diff for ccsm_MyCustomApi:
 - Parameter 'inputParam' added
 - Response property 'outputProp' changed
@@ -256,7 +265,7 @@ dvc api plan -n ccsm_MyCustomApi
 
 **Output:**
 
-```
+```text
 Plan generated: /path/to/plans/ccsm_MyCustomApi.syncplan.json
 State file: /path/to/state/ccsm_MyCustomApi.syncstate.json
 Operations: 3
@@ -269,20 +278,30 @@ Requires destructive changes: No
 
 ### Execute a single operation
 
+Use `--simulate` to execute a single operation as a dry run without applying changes:
+
 ```bash
-dvc api exec-op --operation-id "op-0001-updateCustomApi-ccsm_MyCustomApi" --simulate
+dvc api exec-op --operation-id "op-0010-updateCustomApi-ccsm_MyCustomApi-<uuid>" --simulate
 ```
 
 **Output:**
 
-```
-Operation executed: op-0001-updateCustomApi-ccsm_MyCustomApi
+```text
+Operation executed: op-0010-updateCustomApi-ccsm_MyCustomApi-<uuid>
 Status: simulated
 ```
 
-Without `--simulate` for real execution (not implemented yet).
+Run the same command without `--simulate` to execute the operation against the connected Dataverse environment:
+
+```bash
+dvc api exec-op --operation-id "op-0010-updateCustomApi-ccsm_MyCustomApi-<uuid>"
+```
+
+> Warning: Without `--simulate`, the operation is executed against the connected Dataverse environment and may create, update, or delete Custom API metadata.
 
 ### Execute full plan
+
+Use `--simulate` to execute the full plan as a dry run without applying changes:
 
 ```bash
 dvc api exec-plan --simulate
@@ -290,7 +309,7 @@ dvc api exec-plan --simulate
 
 **Output:**
 
-```
+```text
 Plan executed for: ccsm_MyCustomApi
 Status: simulated
 State file: /path/to/state/ccsm_MyCustomApi.syncstate.json
@@ -299,6 +318,14 @@ State file: /path/to/state/ccsm_MyCustomApi.syncstate.json
 - [2] createCustomApiRequestParameter inputParam: simulated
 - [3] updateCustomApiResponseProperty outputProp: simulated
 ```
+
+Run the command without `--simulate` to execute all pending operations in the plan against the connected Dataverse environment:
+
+```bash
+dvc api exec-plan
+```
+
+> Warning: Without `--simulate`, all pending operations in the sync plan are executed in sequence and may create, update, or delete Custom API metadata.
 
 ### Check metadata
 
@@ -315,6 +342,8 @@ dvc api remove
 # or specifically:
 dvc api remove -n ccsm_MyCustomApi
 ```
+
+This removes local cached/exported artifacts. It does not delete the Custom API from Dataverse.
 
 ## Typical workflow
 
@@ -341,8 +370,8 @@ dvc api use -n ccsm_ExistingApi
 # export for editing
 dvc api export
 
-# edit the local JSON file (e.g. add a parameter)
-# ... edit /path/to/output/ccsm_ExistingApi.json ...
+# edit the local JSON file
+# for example: add a request parameter or change a description
 
 # check diff
 dvc api diff
@@ -350,8 +379,11 @@ dvc api diff
 # create a sync plan
 dvc api plan
 
-# simulate execution
+# simulate execution first
 dvc api exec-plan --simulate
+
+# execute live after reviewing the plan
+dvc api exec-plan
 ```
 
 ### 3. Create a new Custom API
@@ -363,11 +395,14 @@ dvc api exec-plan --simulate
 # set the API as active even if it does not exist in Dataverse yet
 dvc api use -n ccsm_NewApi
 
-# create a sync plan (should include create operations)
+# create a sync plan
 dvc api plan
 
-# simulate execution
+# simulate execution first
 dvc api exec-plan --simulate
+
+# execute live after reviewing the plan
+dvc api exec-plan
 ```
 
 ## Custom API JSON structure
@@ -409,6 +444,35 @@ A typical Custom API JSON file looks like:
 }
 ```
 
+## Publishing notes
+
+The package is built from TypeScript.
+
+The repository does not need to contain committed `dist/` files. The compiled `dist/` output is generated during build and included in the published npm package.
+
+Before publishing, verify the package contents:
+
+```bash
+npm run build
+npm pack --dry-run
+```
+
+The dry run should include at least:
+
+```text
+dist/
+src/
+README.md
+LICENSE
+package.json
+```
+
+For scoped public packages, publish with:
+
+```bash
+npm publish --access public
+```
+
 ## Error handling
 
 Commands return structured error information. Unexpected failures print a stack trace.
@@ -418,7 +482,8 @@ Commands return structured error information. Unexpected failures print a stack 
 - Node.js 16+
 - npm
 - Access to a Dataverse environment
-- Correct Azure AD app registration
+- Correct Azure AD / Microsoft Entra ID App Registration
+- Sufficient Dataverse privileges to read or modify Custom API metadata
 
 ## License
 
@@ -440,7 +505,7 @@ Andreas Brunsmann
 
 # Dataverse Custom API CLI
 
-Eine Node.js/TypeScript-basierte CLI zum Verwalten von Dataverse Custom APIs. Sie ermöglicht das Lesen, Exportieren, Bearbeiten und Synchronisieren von Custom APIs zwischen lokalen JSON-Dateien und Dataverse-Umgebungen.
+Eine Node.js/TypeScript-basierte CLI zum Verwalten von Dataverse Custom APIs. Sie ermöglicht das Lesen, Exportieren, Bearbeiten, Vergleichen, Planen und Synchronisieren von Custom-API-Definitionen zwischen lokalen JSON-Dateien und Dataverse-Umgebungen.
 
 Das GitHub-Repository enthält den TypeScript-Quellcode in `src/`. Der kompilierte `dist/`-Output wird beim Build erzeugt und zusammen mit `src/` im veröffentlichten npm-Paket ausgeliefert.
 
@@ -468,9 +533,15 @@ npm link
   - vorhandene Custom APIs auflisten
   - Custom APIs als lokale JSON-Artefakte exportieren
   - Custom API-Definitionen lokal bearbeiten
-  - Änderungen zurück nach Dataverse synchronisieren (Create, Update, Delete)
-  - Diffs und Sync-Pläne berechnen
+  - lokale Definitionen mit Dataverse-Metadaten vergleichen
+  - Sync-Pläne erstellen
+  - einzelne Sync-Operationen ausführen
+  - vollständige Sync-Pläne ausführen
+  - Custom-API-Metadaten in Dataverse erstellen, ändern oder löschen
+- **Simulationsmodus**: Operationen mit `--simulate` vorab prüfen
 - **JSON- und menschenlesbare Ausgaben**: alle Befehle unterstützen `--json`
+
+> Achtung: Befehle, die ohne `--simulate` ausgeführt werden, können Custom-API-Metadaten in der verbundenen Dataverse-Umgebung erstellen, ändern oder löschen.
 
 ## Authentifizierung und Verbindung
 
@@ -482,7 +553,7 @@ Die CLI unterstützt drei Authentifizierungsmethoden:
 2. **Client Secret** (für Automatisierung/App-Only-Zugriff)
 3. **Interactive Browser** (für browserbasiertes Login)
 
-#### Konfiguration
+### Konfiguration
 
 Erstelle eine `auth.json`-Datei im Projektstamm basierend auf einer der Beispiel-Dateien:
 
@@ -490,7 +561,7 @@ Erstelle eine `auth.json`-Datei im Projektstamm basierend auf einer der Beispiel
 - `auth.clientsecret.example.json` → Client Secret Auth
 - `auth.interactivebrowser.example.json` → Interactive Browser Auth
 
-##### Device Code Auth
+#### Device Code Auth
 
 ```json
 {
@@ -501,14 +572,15 @@ Erstelle eine `auth.json`-Datei im Projektstamm basierend auf einer der Beispiel
 ```
 
 **App Registration Setup:**
-- Erstelle eine Azure AD App Registration
+
+- Erstelle eine Azure AD / Microsoft Entra ID App Registration
 - Füge API-Berechtigungen hinzu:
   - Dynamics CRM > user_impersonation
 - Setze eine Redirect URI:
   - `https://login.microsoftonline.com/common/oauth2/nativeclient`
 - Kein Client Secret erforderlich
 
-##### Client Secret Auth
+#### Client Secret Auth
 
 ```json
 {
@@ -520,14 +592,15 @@ Erstelle eine `auth.json`-Datei im Projektstamm basierend auf einer der Beispiel
 ```
 
 **App Registration Setup:**
-- Erstelle eine Azure AD App Registration
+
+- Erstelle eine Azure AD / Microsoft Entra ID App Registration
 - Erstelle ein Client Secret
 - Füge API-Berechtigungen hinzu:
-  - Dynamics CRM > user_impersonation (für User-Kontext) ODER
-  - Dynamics CRM > Organization.ReadWrite.All (für App-Only-Zugriff)
+  - Dynamics CRM > user_impersonation für delegierten Zugriff
+  - oder die erforderlichen Dataverse Application Permissions für App-Only-Zugriff
 - Keine Redirect URI erforderlich
 
-##### Interactive Browser Auth
+#### Interactive Browser Auth
 
 ```json
 {
@@ -538,7 +611,8 @@ Erstelle eine `auth.json`-Datei im Projektstamm basierend auf einer der Beispiel
 ```
 
 **App Registration Setup:**
-- Ähnlich wie Device Code, aber für browserbasierte Authentifizierung
+
+- Ähnlich wie Device Code Auth, aber für browserbasierte Authentifizierung
 
 ### Verbindung zu einem Environment
 
@@ -548,7 +622,7 @@ dvc connect -u "https://your-org.crm.dynamics.com"
 
 **Ausgabe:**
 
-```
+```text
 Verbunden und gecacht: https://your-org.crm.dynamics.com
 Auth-Modus: deviceCode
 Cache-Datei: /path/to/cache/environment.json
@@ -570,7 +644,7 @@ dvc env list
 
 **Ausgabe:**
 
-```
+```text
 * env-001 (Production) -> https://prod.crm.dynamics.com
 - env-002 (Development) -> https://dev.crm.dynamics.com
 ```
@@ -583,7 +657,7 @@ dvc env current
 
 **Ausgabe:**
 
-```
+```text
 Aktives Environment: env-001
 URL: https://prod.crm.dynamics.com
 ```
@@ -596,7 +670,7 @@ dvc env use -i env-002
 
 **Ausgabe:**
 
-```
+```text
 Aktives Environment gesetzt: env-002
 ```
 
@@ -616,7 +690,7 @@ dvc api list
 
 **Ausgabe:**
 
-```
+```text
 * ccsm_MyCustomApi (aktiv)
 - ccsm_AnotherApi
 - sample_CustomFunction
@@ -636,7 +710,7 @@ dvc api current
 
 **Ausgabe:**
 
-```
+```text
 Aktive API: ccsm_MyCustomApi
 Cache-Datei: /path/to/cache/api/ccsm_MyCustomApi.json
 ```
@@ -649,7 +723,7 @@ dvc api use -n ccsm_MyCustomApi
 
 **Ausgabe:**
 
-```
+```text
 Aktive API gesetzt: ccsm_MyCustomApi
 Cache-Datei: /path/to/cache/api/ccsm_MyCustomApi.json
 ```
@@ -664,11 +738,11 @@ dvc api export -n ccsm_MyCustomApi
 
 **Ausgabe:**
 
-```
+```text
 Exportiert: /path/to/output/ccsm_MyCustomApi.json
 ```
 
-### Lokale Änderungen prüfen (Diff)
+### Lokale Änderungen vergleichen
 
 ```bash
 dvc api diff
@@ -678,13 +752,13 @@ dvc api diff -n ccsm_MyCustomApi
 
 **Ausgabe:**
 
-```
+```text
 Diff für ccsm_MyCustomApi:
 - Parameter 'inputParam' hinzugefügt
 - Response Property 'outputProp' geändert
 ```
 
-Mit JSON-Ausgabe für detaillierte Analyse.
+Mit `--json` erhältst du eine maschinenlesbare Diff-Ausgabe.
 
 ### Sync-Plan erstellen
 
@@ -696,7 +770,7 @@ dvc api plan -n ccsm_MyCustomApi
 
 **Ausgabe:**
 
-```
+```text
 Plan erzeugt: /path/to/plans/ccsm_MyCustomApi.syncplan.json
 State-Datei: /path/to/state/ccsm_MyCustomApi.syncstate.json
 Operationen: 3
@@ -709,20 +783,30 @@ Destruktive Änderungen erforderlich: Nein
 
 ### Einzelne Operation ausführen
 
+Nutze `--simulate`, um eine einzelne Operation als Dry Run auszuführen, ohne Änderungen anzuwenden:
+
 ```bash
-dvc api exec-op --operation-id "op-0001-updateCustomApi-ccsm_MyCustomApi" --simulate
+dvc api exec-op --operation-id "op-0010-updateCustomApi-ccsm_MyCustomApi-<uuid>" --simulate
 ```
 
 **Ausgabe:**
 
-```
-Operation ausgeführt: op-0001-updateCustomApi-ccsm_MyCustomApi
+```text
+Operation ausgeführt: op-0010-updateCustomApi-ccsm_MyCustomApi-<uuid>
 Status: simulated
 ```
 
-Ohne `--simulate` für echte Ausführung (noch nicht implementiert).
+Führe denselben Befehl ohne `--simulate` aus, um die Operation gegen die verbundene Dataverse-Umgebung auszuführen:
+
+```bash
+dvc api exec-op --operation-id "op-0010-updateCustomApi-ccsm_MyCustomApi-<uuid>"
+```
+
+> Achtung: Ohne `--simulate` wird die Operation gegen die verbundene Dataverse-Umgebung ausgeführt und kann Custom-API-Metadaten erstellen, ändern oder löschen.
 
 ### Kompletten Plan ausführen
+
+Nutze `--simulate`, um den vollständigen Plan als Dry Run auszuführen, ohne Änderungen anzuwenden:
 
 ```bash
 dvc api exec-plan --simulate
@@ -730,7 +814,7 @@ dvc api exec-plan --simulate
 
 **Ausgabe:**
 
-```
+```text
 Plan ausgeführt für: ccsm_MyCustomApi
 Status: simulated
 State-Datei: /path/to/state/ccsm_MyCustomApi.syncstate.json
@@ -739,6 +823,14 @@ State-Datei: /path/to/state/ccsm_MyCustomApi.syncstate.json
 - [2] createCustomApiRequestParameter inputParam: simulated
 - [3] updateCustomApiResponseProperty outputProp: simulated
 ```
+
+Führe den Befehl ohne `--simulate` aus, um alle offenen Operationen des Plans gegen die verbundene Dataverse-Umgebung auszuführen:
+
+```bash
+dvc api exec-plan
+```
+
+> Achtung: Ohne `--simulate` werden alle offenen Operationen des Sync-Plans in Reihenfolge ausgeführt und können Custom-API-Metadaten erstellen, ändern oder löschen.
 
 ### Metadaten prüfen
 
@@ -755,6 +847,8 @@ dvc api remove
 # oder spezifisch:
 dvc api remove -n ccsm_MyCustomApi
 ```
+
+Dies entfernt lokale gecachte/exportierte Artefakte. Die Custom API wird dadurch nicht aus Dataverse gelöscht.
 
 ## Typischer Workflow
 
@@ -781,8 +875,8 @@ dvc api use -n ccsm_ExistingApi
 # Exportieren für Bearbeitung
 dvc api export
 
-# Lokale JSON-Datei bearbeiten (z.B. Parameter hinzufügen)
-# ... edit /path/to/output/ccsm_ExistingApi.json ...
+# Lokale JSON-Datei bearbeiten
+# z. B. Parameter hinzufügen oder Beschreibung ändern
 
 # Diff prüfen
 dvc api diff
@@ -790,24 +884,30 @@ dvc api diff
 # Plan erstellen
 dvc api plan
 
-# Simuliert ausführen
+# zuerst simuliert ausführen
 dvc api exec-plan --simulate
+
+# nach Prüfung live ausführen
+dvc api exec-plan
 ```
 
 ### 3. Neue Custom API erstellen
 
 ```bash
-# Neue JSON-Datei manuell erstellen (basierend auf exportierter Struktur)
+# Neue JSON-Datei manuell erstellen, basierend auf exportierter Struktur
 # Beispiel: /path/to/output/ccsm_NewApi.json
 
-# API als aktiv setzen (auch wenn sie noch nicht in Dataverse existiert)
+# API als aktiv setzen, auch wenn sie noch nicht in Dataverse existiert
 dvc api use -n ccsm_NewApi
 
-# Plan erstellen (wird Create-Operationen enthalten)
+# Plan erstellen
 dvc api plan
 
-# Simuliert ausführen
+# zuerst simuliert ausführen
 dvc api exec-plan --simulate
+
+# nach Prüfung live ausführen
+dvc api exec-plan
 ```
 
 ## JSON-Struktur der Custom API
@@ -849,6 +949,35 @@ Eine typische Custom API JSON-Datei sieht so aus:
 }
 ```
 
+## Publishing notes
+
+Das Paket wird aus TypeScript gebaut.
+
+Das Repository muss keine committed `dist/`-Dateien enthalten. Der kompilierte `dist/`-Output wird beim Build erzeugt und im veröffentlichten npm-Paket ausgeliefert.
+
+Prüfe vor dem Publish den Paketinhalt:
+
+```bash
+npm run build
+npm pack --dry-run
+```
+
+Der Dry Run sollte mindestens enthalten:
+
+```text
+dist/
+src/
+README.md
+LICENSE
+package.json
+```
+
+Für scoped public packages veröffentlichst du mit:
+
+```bash
+npm publish --access public
+```
+
 ## Fehlerbehandlung
 
 Alle Befehle geben strukturierte Fehler aus. Bei unerwarteten Fehlern wird ein Stack-Trace angezeigt.
@@ -858,7 +987,8 @@ Alle Befehle geben strukturierte Fehler aus. Bei unerwarteten Fehlern wird ein S
 - Node.js 16+
 - npm
 - Zugriff auf Dataverse-Environment
-- Korrekte Azure AD App Registration
+- Korrekte Azure AD / Microsoft Entra ID App Registration
+- Ausreichende Dataverse-Berechtigungen zum Lesen oder Ändern von Custom-API-Metadaten
 
 ## Lizenz
 
