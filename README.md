@@ -430,7 +430,7 @@ Andreas Brunsmann
 
 - Email: oss@andreasbrunsmann.de
 - GitHub: https://github.com/brunsforge
-- Repository: https://github.com/brunsforge/dataverse-custom-api-cli
+- Repository: https://github.com/brunsforge/dataverse-custom-api
 
 ## Contributors
 
