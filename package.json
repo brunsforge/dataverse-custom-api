@@ -27,7 +27,7 @@
     "microsoft",
     "crm"
   ],
-  "author": "Andreas Brunsmann <andreas.brunsmann@example.com> (https://github.com/andreasbrunsmann)",
+  "author": "Andreas Brunsmann <npm@andreasbrunsmann@de>",
   "license": "MIT",
   "files": [
     "dist",
