@@ -16,7 +16,9 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/cli/index.js"
+    "start": "node dist/cli/index.js",
+    "prepack": "npm run build",
+    "pack:dry": "npm pack --dry-run"
   },
   "keywords": [
     "dataverse",
@@ -43,7 +45,8 @@
     "tsconfig.json",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "auth.*.example.json"
   ],
   "type": "module",
   "dependencies": {

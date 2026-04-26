@@ -2,7 +2,7 @@
 
 A Node.js/TypeScript CLI for managing Dataverse Custom APIs. It enables reading, exporting, editing, and synchronizing Custom APIs between local JSON files and Dataverse environments.
 
-The published package contains both compiled `dist/` output and the TypeScript `src/` source code.
+The GitHub repository contains the TypeScript `src/` source code. The compiled `dist/` output is generated during build and included together with `src/` in the published npm package.
 
 ## Installation
 
@@ -442,7 +442,7 @@ Andreas Brunsmann
 
 Eine Node.js/TypeScript-basierte CLI zum Verwalten von Dataverse Custom APIs. Sie ermöglicht das Lesen, Exportieren, Bearbeiten und Synchronisieren von Custom APIs zwischen lokalen JSON-Dateien und Dataverse-Umgebungen.
 
-Das veröffentlichte Paket enthält sowohl den kompilierten `dist/`-Output als auch den TypeScript-Quellcode in `src/`.
+Das GitHub-Repository enthält den TypeScript-Quellcode in `src/`. Der kompilierte `dist/`-Output wird beim Build erzeugt und zusammen mit `src/` im veröffentlichten npm-Paket ausgeliefert.
 
 ## Installation
 
