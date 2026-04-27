@@ -12,9 +12,9 @@ export async function runApiExecutePlanCommand(
     return;
   }
 
-  console.log(`Plan ausgeführt für: ${result.uniqueName}`);
+  console.log(`Plan executed for: ${result.uniqueName}`);
   console.log(`Status: ${result.executionState.status}`);
-  console.log(`State-Datei: ${result.stateFilePath}`);
+  console.log(`State file: ${result.stateFilePath}`);
 
   for (const operation of result.executionState.operations) {
     console.log(

@@ -18,36 +18,36 @@ export function normalizeCliError(error: unknown, context?: string): CliErrorDet
 
     if (lower.includes("invalid_grant")) {
         return {
-            title: "Authentifizierung fehlgeschlagen",
+            title: "Authentication failed",
             message:
-                "Der Login wurde von Entra ID abgelehnt oder nicht erfolgreich abgeschlossen. " +
-                "Prüfe Public Client Flow, API Permissions, Admin Consent und ob der Login vollständig durchgeführt wurde.",
+                "The login was rejected by Entra ID or not completed successfully. " +
+                "Check Public Client Flow, API Permissions, Admin Consent, and whether the login was fully completed.",
             technical: `${context ? `[${context}] ` : ""}${rawMessage}`,
         };
     }
 
     if (lower.includes("invalid_resource")) {
         return {
-            title: "Ungültige Zielressource für Tokenanforderung",
+            title: "Invalid target resource for token request",
             message:
-                "Die App Registration darf für die angeforderte Dataverse-Ressource kein Token anfordern. " +
-                "Prüfe API Permissions und Consent der verwendeten App Registration.",
+                "The App Registration is not permitted to request a token for the requested Dataverse resource. " +
+                "Check API Permissions and Consent of the App Registration.",
             technical: `${context ? `[${context}] ` : ""}${rawMessage}`,
         };
     }
 
     if (lower.includes("interaction_required")) {
         return {
-            title: "Interaktive Anmeldung erforderlich",
+            title: "Interactive login required",
             message:
-                "Der aktuelle Authentifizierungsfluss benötigt eine Benutzerinteraktion oder erneute Zustimmung.",
+                "The current authentication flow requires user interaction or re-consent.",
             technical: `${context ? `[${context}] ` : ""}${rawMessage}`,
         };
     }
 
     return {
-        title: "Unerwarteter Fehler",
-        message: "Der Befehl konnte nicht erfolgreich ausgeführt werden.",
+        title: "Unexpected error",
+        message: "The command could not be executed successfully.",
         technical: `${context ? `[${context}] ` : ""}${rawMessage}`,
     };
 }
@@ -58,7 +58,7 @@ export function formatCliError(error: unknown, context?: string): string {
     let output = `${details.title}\n${details.message}`;
 
     if (details.technical) {
-        output += `\nTechnischer Fehler: ${details.technical}`;
+        output += `\nTechnical error: ${details.technical}`;
     }
 
     return output;

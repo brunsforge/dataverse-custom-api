@@ -146,11 +146,27 @@ export interface CustomApiSyncPlan {
   operations: CustomApiSyncOperation[];
 }
 
+export interface CustomApiSyncOperationErrorRequestInfo {
+  method?: string;
+  url?: string;
+  baseURL?: string;
+  payload?: unknown;
+}
+
 export interface CustomApiSyncOperationError {
   name: string;
   message: string;
   code?: string;
   details?: string;
+
+  httpStatus?: number;
+  statusText?: string;
+  dataverseErrorCode?: string;
+  dataverseErrorMessage?: string;
+  dataverseInnerError?: unknown;
+  requestId?: string;
+  responseData?: unknown;
+  request?: CustomApiSyncOperationErrorRequestInfo;
 }
 
 export interface CustomApiSyncOperationResult {

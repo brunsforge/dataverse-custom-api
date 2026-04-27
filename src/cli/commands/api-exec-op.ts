@@ -20,11 +20,11 @@ export async function runApiExecuteOperationCommand(
   console.log(`Operation: ${result.result.operationId}`);
   console.log(`Status: ${result.result.status}`);
   console.log(`Message: ${result.result.message}`);
-  console.log(`Simulated: ${result.result.simulated ? "Ja" : "Nein"}`);
-  console.log(`State-Datei: ${result.stateFilePath}`);
+  console.log(`Simulated: ${result.result.simulated ? "yes" : "no"}`);
+  console.log(`State file: ${result.stateFilePath}`);
 
   if (result.result.error) {
-    console.log(`Fehler: ${result.result.error.name}: ${result.result.error.message}`);
+    console.log(`Error: ${result.result.error.name}: ${result.result.error.message}`);
     if (result.result.error.details) {
       console.log(`Details: ${result.result.error.details}`);
     }

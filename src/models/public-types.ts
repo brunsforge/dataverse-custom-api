@@ -7,6 +7,7 @@ import type {
   CustomApiSyncOperationResult,
   CustomApiSyncPlan,
 } from "./customApiModels.js";
+import type { CcdvCommandResult } from "./diagnosticModels.js";
 
 export interface ConnectOptions {
   environmentUrl: string;
@@ -108,4 +109,14 @@ export interface CheckCustomApiMetadataResult {
   status: "ok" | "warning" | "error";
   message: string;
   mismatches: MetadataMismatchItem[];
+}
+
+export interface ValidateCustomApiOptions {
+  uniqueName?: string;
+}
+
+export interface ValidateCustomApiResult {
+  uniqueName: string;
+  filePath: string;
+  commandResult: CcdvCommandResult;
 }

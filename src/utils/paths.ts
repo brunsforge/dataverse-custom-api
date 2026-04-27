@@ -21,10 +21,7 @@ export async function getEnvironmentStoreFilePath(
   return path.join(cacheRoot, "environments.json");
 }
 
-/**
- * Legacy single-environment cache file.
- * Wird nur noch für Migration/Abwärtskompatibilität verwendet.
- */
+/** Legacy single-environment cache file. Only used for migration/backwards compatibility. */
 export async function getEnvironmentCacheFilePath(
   context?: RuntimeContext
 ): Promise<string> {

@@ -11,5 +11,5 @@ export async function runApiExportCommand(
     return;
   }
 
-  console.log(`Exportiert: ${result.filePath}`);
+  console.log(`Exported: ${result.filePath}`);
 }

@@ -10,6 +10,6 @@ export async function runApiCurrentCommand(
     return;
   }
 
-  console.log(`Aktive API: ${result.uniqueName}`);
-  console.log(`Cache-Datei: ${result.activeApiCacheFilePath}`);
+  console.log(`Active API: ${result.uniqueName}`);
+  console.log(`Cache file: ${result.activeApiCacheFilePath}`);
 }

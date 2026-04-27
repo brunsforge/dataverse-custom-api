@@ -123,7 +123,7 @@ function toBindingType(value: string): number {
     case "EntityCollection":
       return 2;
     default:
-      throw new Error(`Unbekannter bindingType '${value}'.`);
+      throw new Error(`Unknown bindingType '${value}'.`);
   }
 }
 
@@ -136,7 +136,7 @@ function toAllowedCustomProcessingStepType(value: string): number {
     case "SyncAndAsync":
       return 2;
     default:
-      throw new Error(`Unbekannter allowedCustomProcessingStepType '${value}'.`);
+      throw new Error(`Unknown allowedCustomProcessingStepType '${value}'.`);
   }
 }
 
@@ -169,7 +169,7 @@ function toParameterType(value: string): number {
     case "Guid":
       return 12;
     default:
-      throw new Error(`Unbekannter Parameter-Typ '${value}'.`);
+      throw new Error(`Unknown parameter type '${value}'.`);
   }
 }
 
@@ -185,6 +185,18 @@ function addIfDefined(
   if (value !== undefined && value !== null && value !== "") {
     target[field] = value;
   }
+}
+
+function buildChildName(
+  customApiUniqueName: string | undefined,
+  childUniqueName: string,
+  explicitName: string | undefined
+): string | undefined {
+  if (customApiUniqueName) {
+    return `${customApiUniqueName}.${childUniqueName}`;
+  }
+
+  return explicitName;
 }
 
 function mapRequestParameter(row: DataverseRequestParameterRow): CustomApiParameterModel {
@@ -387,7 +399,8 @@ function buildCustomApiPayload(
 function buildRequestParameterPayload(
   parameter: CustomApiParameterModel,
   customApiId?: string,
-  changedFields?: string[]
+  changedFields?: string[],
+  customApiUniqueName?: string
 ): Record<string, unknown> {
   const payload: Record<string, unknown> = {};
   const include = (field: string): boolean => !changedFields || changedFields.includes(field);
@@ -397,7 +410,11 @@ function buildRequestParameterPayload(
   }
 
   if (include("name")) {
-    addIfDefined(payload, "name", parameter.name);
+    addIfDefined(
+      payload,
+      "name",
+      buildChildName(customApiUniqueName, parameter.uniqueName, parameter.name)
+    );
   }
 
   if (include("displayName")) {
@@ -417,7 +434,10 @@ function buildRequestParameterPayload(
   }
 
   if (include("logicalEntityName")) {
-    addIfDefined(payload, "logicalentityname", parameter.logicalEntityName);
+    const supportsLogicalEntityName = parameter.type === "Entity" || parameter.type === "EntityReference";
+    if (supportsLogicalEntityName) {
+      addIfDefined(payload, "logicalentityname", parameter.logicalEntityName);
+    }
   }
 
   if (customApiId) {
@@ -430,7 +450,8 @@ function buildRequestParameterPayload(
 function buildResponsePropertyPayload(
   property: CustomApiResponsePropertyModel,
   customApiId?: string,
-  changedFields?: string[]
+  changedFields?: string[],
+  customApiUniqueName?: string
 ): Record<string, unknown> {
   const payload: Record<string, unknown> = {};
   const include = (field: string): boolean => !changedFields || changedFields.includes(field);
@@ -440,7 +461,11 @@ function buildResponsePropertyPayload(
   }
 
   if (include("name")) {
-    addIfDefined(payload, "name", property.name);
+    addIfDefined(
+      payload,
+      "name",
+      buildChildName(customApiUniqueName, property.uniqueName, property.name)
+    );
   }
 
   if (include("displayName")) {
@@ -456,7 +481,10 @@ function buildResponsePropertyPayload(
   }
 
   if (include("logicalEntityName")) {
-    addIfDefined(payload, "logicalentityname", property.logicalEntityName);
+    const supportsLogicalEntityName = property.type === "Entity" || property.type === "EntityReference";
+    if (supportsLogicalEntityName) {
+      addIfDefined(payload, "logicalentityname", property.logicalEntityName);
+    }
   }
 
   if (customApiId) {
@@ -524,7 +552,7 @@ export class CustomApiRepository {
     const row = await this.getCustomApiRowByUniqueName(definition.uniqueName);
 
     if (!row?.customapiid) {
-      throw new Error(`Custom API '${definition.uniqueName}' wurde für Update nicht gefunden.`);
+      throw new Error(`Custom API '${definition.uniqueName}' not found for update.`);
     }
 
     const http = await this.client.createHttpClient();
@@ -538,7 +566,7 @@ export class CustomApiRepository {
     const row = await this.getCustomApiRowByUniqueName(uniqueName);
 
     if (!row?.customapiid) {
-      throw new Error(`Custom API '${uniqueName}' wurde für Delete nicht gefunden.`);
+      throw new Error(`Custom API '${uniqueName}' not found for delete.`);
     }
 
     const http = await this.client.createHttpClient();
@@ -553,14 +581,14 @@ export class CustomApiRepository {
 
     if (!row?.customapiid) {
       throw new Error(
-        `Custom API '${customApiUniqueName}' wurde für Request-Parameter-Create nicht gefunden.`
+        `Custom API '${customApiUniqueName}' not found for request parameter create.`
       );
     }
 
     const http = await this.client.createHttpClient();
     await http.post(
       "/customapirequestparameters",
-      buildRequestParameterPayload(parameter, row.customapiid)
+      buildRequestParameterPayload(parameter, row.customapiid, undefined, customApiUniqueName)
     );
   }
 
@@ -576,7 +604,7 @@ export class CustomApiRepository {
 
     if (!existing?.customapirequestparameterid) {
       throw new Error(
-        `Request-Parameter '${parameter.uniqueName}' wurde für Update nicht gefunden.`
+        `Request parameter '${parameter.uniqueName}' not found for update.`
       );
     }
 
@@ -598,7 +626,7 @@ export class CustomApiRepository {
 
     if (!existing?.customapirequestparameterid) {
       throw new Error(
-        `Request-Parameter '${parameterUniqueName}' wurde für Delete nicht gefunden.`
+        `Request parameter '${parameterUniqueName}' not found for delete.`
       );
     }
 
@@ -614,14 +642,14 @@ export class CustomApiRepository {
 
     if (!row?.customapiid) {
       throw new Error(
-        `Custom API '${customApiUniqueName}' wurde für Response-Property-Create nicht gefunden.`
+        `Custom API '${customApiUniqueName}' not found for response property create.`
       );
     }
 
     const http = await this.client.createHttpClient();
     await http.post(
       "/customapiresponseproperties",
-      buildResponsePropertyPayload(property, row.customapiid)
+      buildResponsePropertyPayload(property, row.customapiid, undefined, customApiUniqueName)
     );
   }
 
@@ -637,7 +665,7 @@ export class CustomApiRepository {
 
     if (!existing?.customapiresponsepropertyid) {
       throw new Error(
-        `Response-Property '${property.uniqueName}' wurde für Update nicht gefunden.`
+        `Response property '${property.uniqueName}' not found for update.`
       );
     }
 
@@ -659,7 +687,7 @@ export class CustomApiRepository {
 
     if (!existing?.customapiresponsepropertyid) {
       throw new Error(
-        `Response-Property '${propertyUniqueName}' wurde für Delete nicht gefunden.`
+        `Response property '${propertyUniqueName}' not found for delete.`
       );
     }
 
@@ -676,7 +704,7 @@ export class CustomApiRepository {
     const api = await this.getCustomApiByUniqueName(uniqueName);
 
     if (!api) {
-      throw new Error(`Custom API '${uniqueName}' wurde nicht gefunden.`);
+      throw new Error(`Custom API '${uniqueName}' not found.`);
     }
 
     const catalog: CustomApiCatalogModel = {

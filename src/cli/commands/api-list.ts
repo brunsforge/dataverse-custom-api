@@ -26,7 +26,7 @@ export async function runApiListCommand(jsonOutput: boolean): Promise<void> {
   }
 
   if (items.length === 0) {
-    console.log("Keine Custom APIs gefunden.");
+    console.log("No custom APIs found.");
     return;
   }
 

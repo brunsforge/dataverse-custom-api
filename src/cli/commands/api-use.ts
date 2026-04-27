@@ -11,6 +11,6 @@ export async function runApiUseCommand(
     return;
   }
 
-  console.log(`Aktive API gesetzt: ${result.uniqueName}`);
-  console.log(`Cache-Datei: ${result.activeApiCacheFilePath}`);
+  console.log(`Active API set: ${result.uniqueName}`);
+  console.log(`Cache file: ${result.activeApiCacheFilePath}`);
 }

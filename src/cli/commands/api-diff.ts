@@ -11,20 +11,20 @@ export async function runApiDiffCommand(
     return;
   }
 
-  console.log(`Diff für: ${result.uniqueName}`);
-  console.log(`Unterschiede vorhanden: ${result.isDifferent ? "Ja" : "Nein"}`);
+  console.log(`Diff for: ${result.uniqueName}`);
+  console.log(`Differences found: ${result.isDifferent ? "yes" : "no"}`);
   console.log(`Custom API: ${result.customApi.kind}`);
 
   if (result.summary.requiresCustomApiRecreate) {
-    console.log("Custom API muss neu angelegt werden: Ja");
+    console.log("Custom API requires recreate: yes");
   }
 
   if (result.summary.requiresAnyRecreate) {
-    console.log("Mindestens ein Objekt erfordert Delete + Recreate: Ja");
+    console.log("At least one object requires delete + recreate: yes");
   }
 
   console.log("");
-  console.log("Request-Parameter-Summary:");
+  console.log("Request parameter summary:");
   console.log(
     `  none=${result.summary.requestParameterChanges.none}, create=${result.summary.requestParameterChanges.create}, update=${result.summary.requestParameterChanges.update}, delete=${result.summary.requestParameterChanges.delete}, recreate=${result.summary.requestParameterChanges.recreate}`
   );
@@ -42,7 +42,7 @@ export async function runApiDiffCommand(
   }
 
   console.log("");
-  console.log("Response-Property-Summary:");
+  console.log("Response property summary:");
   console.log(
     `  none=${result.summary.responsePropertyChanges.none}, create=${result.summary.responsePropertyChanges.create}, update=${result.summary.responsePropertyChanges.update}, delete=${result.summary.responsePropertyChanges.delete}, recreate=${result.summary.responsePropertyChanges.recreate}`
   );

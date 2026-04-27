@@ -47,7 +47,7 @@ async function createInteractiveBrowserCredential(
 
   if (!auth.tenantId || !auth.clientId) {
     throw new Error(
-      "auth.json ist für interactiveBrowser unvollständig. Erwartet werden tenantId und clientId."
+      "auth.json is incomplete for interactiveBrowser. Expected: tenantId and clientId."
     );
   }
 
@@ -101,7 +101,7 @@ async function createDeviceCodeCredential(
         console.log(info.message);
       } else {
         console.log(
-          "Device-Code-Anmeldung wurde gestartet. Bitte den Anmeldehinweisen folgen."
+          "Device code authentication started. Please follow the sign-in instructions."
         );
       }
     },
@@ -149,7 +149,7 @@ export async function createCredential(
   if (authMode === "clientSecret") {
     if (!auth.tenantId || !auth.clientId || !auth.clientSecret) {
       throw new Error(
-        "auth.json ist für authMode='clientSecret' unvollständig. Erwartet werden tenantId, clientId und clientSecret."
+        "auth.json is incomplete for authMode='clientSecret'. Expected: tenantId, clientId, and clientSecret."
       );
     }
 
@@ -193,7 +193,7 @@ export async function getDataverseAccessToken(
     const token = await credential.getToken(scope);
 
     if (!token?.token) {
-      throw new Error("Kein Access Token für Dataverse erhalten.");
+      throw new Error("No access token received for Dataverse.");
     }
 
     cachedToken = token;
@@ -204,7 +204,7 @@ export async function getDataverseAccessToken(
     const message = error instanceof Error ? error.message : String(error);
 
     throw new Error(
-      `Tokenanforderung für Dataverse fehlgeschlagen. Environment='${environmentUrl}', Details='${message}'`
+      `Token request for Dataverse failed. environment='${environmentUrl}', details='${message}'`
     );
   }
 }

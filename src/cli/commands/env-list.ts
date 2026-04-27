@@ -26,7 +26,7 @@ export async function runEnvironmentListCommand(jsonOutput: boolean): Promise<vo
   }
 
   if (items.length === 0) {
-    console.log("Keine Environments gespeichert.");
+    console.log("No environments saved.");
     return;
   }
 

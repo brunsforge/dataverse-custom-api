@@ -202,7 +202,7 @@ export async function getActiveEnvironment(
   const activeEnvironmentId = result.store.activeEnvironmentId;
   if (!activeEnvironmentId) {
     throw new Error(
-      "Kein aktives Environment gesetzt. Verwende 'ccsm connect' oder 'ccsm env use'."
+      "No active environment set. Use 'dvc connect' or 'dvc env use'."
     );
   }
 
@@ -212,7 +212,7 @@ export async function getActiveEnvironment(
 
   if (!match) {
     throw new Error(
-      `Das aktive Environment '${activeEnvironmentId}' wurde im Environment-Store nicht gefunden.`
+      `Active environment '${activeEnvironmentId}' was not found in the environment store.`
     );
   }
 
@@ -291,7 +291,7 @@ export async function setActiveEnvironment(
   const match = result.store.environments.find((environment) => environment.id === environmentId);
 
   if (!match) {
-    throw new Error(`Environment '${environmentId}' wurde nicht gefunden.`);
+    throw new Error(`Environment '${environmentId}' not found.`);
   }
 
   const nextStore: EnvironmentStore = {
@@ -316,7 +316,7 @@ export async function removeEnvironment(
   const match = result.store.environments.find((environment) => environment.id === environmentId);
 
   if (!match) {
-    throw new Error(`Environment '${environmentId}' wurde nicht gefunden.`);
+    throw new Error(`Environment '${environmentId}' not found.`);
   }
 
   const remaining = result.store.environments.filter(

@@ -1,6 +1,6 @@
 # Dataverse Custom API CLI
 
-A Node.js/TypeScript CLI for managing Dataverse Custom APIs. It enables reading, exporting, editing, diffing, planning, and synchronizing Custom API definitions between local JSON files and Dataverse environments.
+A Node.js/TypeScript CLI for managing Dataverse Custom APIs. It enables reading, exporting, editing, validating, diffing, planning, and synchronizing Custom API definitions between local JSON files and Dataverse environments.
 
 The GitHub repository contains the TypeScript `src/` source code. The compiled `dist/` output is generated during build and included together with `src/` in the published npm package.
 
@@ -28,15 +28,17 @@ npm link
   - list available Custom APIs
   - export Custom APIs as local JSON artifacts
   - edit Custom API definitions locally
+  - **validate local definitions** before syncing — catches type errors, missing fields, and invalid combinations with structured diagnostics
   - compare local definitions with Dataverse metadata
-  - create sync plans
+  - create sync plans (validation runs automatically; plan is blocked if errors are found)
   - execute single sync operations
   - execute full sync plans
   - create, update, or delete Custom API metadata in Dataverse
 - **Simulation mode**: preview operations with `--simulate` before applying changes
 - **JSON and human-readable output**: every command supports `--json`
+- **Structured diagnostics**: `api validate --json` returns a `CcdvCommandResult` envelope for VS Code extension integration
 
-> Warning: Commands that execute without `--simulate` may create, update, or delete Custom API metadata in the connected Dataverse environment.
+> **Warning:** Commands that execute without `--simulate` may create, update, or delete Custom API metadata in the connected Dataverse environment.
 
 ## Authentication and connection
 
@@ -69,10 +71,8 @@ Create an `auth.json` file in the repository root based on one of the sample fil
 **App registration setup:**
 
 - Create an Azure AD / Microsoft Entra ID App Registration
-- Add API permissions:
-  - Dynamics CRM > user_impersonation
-- Add a redirect URI:
-  - `https://login.microsoftonline.com/common/oauth2/nativeclient`
+- Add API permissions: Dynamics CRM > user_impersonation
+- Add a redirect URI: `https://login.microsoftonline.com/common/oauth2/nativeclient`
 - No client secret is required
 
 #### Client Secret auth
@@ -90,9 +90,7 @@ Create an `auth.json` file in the repository root based on one of the sample fil
 
 - Create an Azure AD / Microsoft Entra ID App Registration
 - Create a client secret
-- Add API permissions:
-  - Dynamics CRM > user_impersonation for delegated access
-  - or the required Dataverse application permissions for app-only access
+- Add API permissions: Dynamics CRM > user_impersonation (or Dataverse application permissions for app-only access)
 - No redirect URI is required
 
 #### Interactive Browser auth
@@ -104,10 +102,6 @@ Create an `auth.json` file in the repository root based on one of the sample fil
   "authMode": "interactiveBrowser"
 }
 ```
-
-**App registration setup:**
-
-- Similar to Device Code auth, but for browser-based authentication
 
 ### Connect to an environment
 
@@ -121,12 +115,6 @@ dvc connect -u "https://your-org.crm.dynamics.com"
 Connected and cached: https://your-org.crm.dynamics.com
 Auth mode: deviceCode
 Cache file: /path/to/cache/environment.json
-```
-
-With JSON output:
-
-```bash
-dvc connect -u "https://your-org.crm.dynamics.com" --json
 ```
 
 ## Environment management
@@ -154,19 +142,15 @@ dvc env current
 
 ```text
 Active environment: env-001
+Display name: Production
 URL: https://prod.crm.dynamics.com
+Auth mode: deviceCode
 ```
 
 ### Switch environment
 
 ```bash
 dvc env use -i env-002
-```
-
-**Output:**
-
-```text
-Active environment set: env-002
 ```
 
 ### Remove environment
@@ -186,15 +170,9 @@ dvc api list
 **Output:**
 
 ```text
-* ccsm_MyCustomApi (active)
+* ccsm_MyCustomApi
 - ccsm_AnotherApi
 - sample_CustomFunction
-```
-
-With JSON output:
-
-```bash
-dvc api list --json
 ```
 
 ### Show active Custom API
@@ -207,7 +185,7 @@ dvc api current
 
 ```text
 Active API: ccsm_MyCustomApi
-Cache file: /path/to/cache/api/ccsm_MyCustomApi.json
+Cache file: /path/to/cache/active-api.json
 ```
 
 ### Set active Custom API
@@ -216,18 +194,13 @@ Cache file: /path/to/cache/api/ccsm_MyCustomApi.json
 dvc api use -n ccsm_MyCustomApi
 ```
 
-**Output:**
-
-```text
-Active API set: ccsm_MyCustomApi
-Cache file: /path/to/cache/api/ccsm_MyCustomApi.json
-```
-
 ### Export Custom API
+
+Exports the current Dataverse definition to a local JSON catalog file.
 
 ```bash
 dvc api export
-# or specifically:
+# or with explicit name:
 dvc api export -n ccsm_MyCustomApi
 ```
 
@@ -237,122 +210,234 @@ dvc api export -n ccsm_MyCustomApi
 Exported: /path/to/output/ccsm_MyCustomApi.json
 ```
 
-### Compare local changes
+### Validate local definition
+
+Validates the local JSON file against Dataverse field rules. Returns structured diagnostics with error codes, field paths, and suggested fixes. No network connection is required.
+
+```bash
+dvc api validate
+# or with explicit name:
+dvc api validate -n ccsm_MyCustomApi
+```
+
+**Output — no issues:**
+
+```text
+Validation for: ccsm_MyCustomApi
+Status: succeeded
+No issues found.
+```
+
+**Output — with diagnostics:**
+
+```text
+Validation for: ccsm_MyCustomApi
+Status: validationFailed
+
+ERROR [CCDV_PARAM_LOGICAL_ENTITY_NAME_NOT_ALLOWED] [ccsm_MyCustomApi > NewParameter].logicalEntityName
+      Request parameter 'NewParameter' has type 'EntityCollection' which does not support logicalEntityName. Only Entity and EntityReference are allowed.
+      Fix: Remove logicalEntityName or change the parameter type to Entity or EntityReference.
+
+WARN  [CCDV_PARAM_NAME_RECOMMENDED_FORMAT] [ccsm_MyCustomApi > InputParam].name
+      Request parameter 'InputParam' name 'InputParam' does not follow the recommended format 'ccsm_MyCustomApi.InputParam'.
+      Fix: Set name to 'ccsm_MyCustomApi.InputParam'.
+
+Summary: 1 error(s), 1 warning(s), 0 info(s)
+```
+
+**JSON output** returns a full `CcdvCommandResult` envelope:
+
+```bash
+dvc api validate --json
+```
+
+```json
+{
+  "schemaVersion": "1.0.0",
+  "status": "validationFailed",
+  "command": "api validate",
+  "startedAtUtc": "2025-01-15T10:00:00.000Z",
+  "finishedAtUtc": "2025-01-15T10:00:00.001Z",
+  "durationMs": 1,
+  "diagnostics": [
+    {
+      "id": "diag-0001",
+      "code": "CCDV_PARAM_LOGICAL_ENTITY_NAME_NOT_ALLOWED",
+      "severity": "error",
+      "category": "validation",
+      "message": "Request parameter 'NewParameter' has type 'EntityCollection' which does not support logicalEntityName.",
+      "entityKind": "requestParameter",
+      "parentUniqueName": "ccsm_MyCustomApi",
+      "uniqueName": "NewParameter",
+      "field": "logicalEntityName",
+      "jsonPath": "$.requestParameters[?(@.uniqueName=='NewParameter')].logicalEntityName",
+      "blocking": true,
+      "suggestedFix": {
+        "kind": "removeField",
+        "field": "logicalEntityName",
+        "message": "Remove logicalEntityName or change the parameter type to Entity or EntityReference."
+      }
+    }
+  ]
+}
+```
+
+**Diagnostic severity levels:**
+
+| Severity | Meaning |
+|----------|---------|
+| `error` | Blocking — Dataverse will reject the payload or the value is structurally invalid. `api plan` will not proceed. |
+| `warning` | Non-blocking — the definition is accepted but deviates from recommended practice (e.g. name format). |
+| `info` | Informational — e.g. an open Entity type without `logicalEntityName`, which is valid but may be unintentional. |
+
+**Validated rules include:**
+
+- `uniqueName` required, max 128 characters, must contain publisher prefix (e.g. `ccsm_`), only letters/digits/underscores
+- `name` and `displayName` required, max 100 characters
+- `description` max 300 characters
+- `bindingType` must be `Global`, `Entity`, or `EntityCollection`
+- `boundEntityLogicalName` required when `bindingType` is `Entity` or `EntityCollection`; must be absent for `Global`
+- `allowedCustomProcessingStepType` must be `None`, `AsyncOnly`, or `SyncAndAsync`
+- Functions (`isFunction: true`) must have at least one response property
+- Functions must not use open Entity/EntityCollection request parameters (without `logicalEntityName`)
+- `logicalEntityName` only allowed on parameters/properties with type `Entity` or `EntityReference`; automatically flagged for all other types
+- `name` format recommendation: `{customApiUniqueName}.{childUniqueName}`
+
+> **Note:** `api plan` runs the same validation internally. If blocking errors are found, the plan is not created and the error message references `api validate` for the full report. Always run `api validate` first to see all diagnostics before planning.
+
+### Compare local definition with Dataverse
+
+Compares the local JSON file against the current Dataverse metadata and shows field-level differences.
 
 ```bash
 dvc api diff
-# or specifically:
+# or with explicit name:
 dvc api diff -n ccsm_MyCustomApi
 ```
 
 **Output:**
 
 ```text
-Diff for ccsm_MyCustomApi:
-- Parameter 'inputParam' added
-- Response property 'outputProp' changed
+Diff for: ccsm_MyCustomApi
+Differences found: yes
+Custom API: update
+
+Request parameter summary:
+  none=1, create=1, update=0, delete=0, recreate=0
+- create: NewParameter
+
+Response property summary:
+  none=2, create=0, update=0, delete=0, recreate=0
 ```
 
-Use `--json` for machine-readable diff output.
+Use `--json` for the full machine-readable diff output.
 
 ### Create sync plan
 
+Compares local vs. Dataverse, generates an ordered operation list, and writes plan and state files. **Validation runs automatically** — if blocking errors exist, the plan is not created.
+
 ```bash
 dvc api plan
-# or specifically:
+# or with explicit name:
 dvc api plan -n ccsm_MyCustomApi
 ```
 
 **Output:**
 
 ```text
-Plan generated: /path/to/plans/ccsm_MyCustomApi.syncplan.json
-State file: /path/to/state/ccsm_MyCustomApi.syncstate.json
-Operations: 3
-Requires destructive changes: No
+Plan created: /path/to/output/ccsm_MyCustomApi.syncplan.json
+State file: /path/to/output/ccsm_MyCustomApi.syncstate.json
+Operations: 2
+Destructive changes required: no
+- [10] createRequestParameter NewParameter (new)
+- [20] updateCustomApi ccsm_MyCustomApi (changed)
+```
 
-- [1] updateCustomApi ccsm_MyCustomApi (Parameter added)
-- [2] createCustomApiRequestParameter inputParam (New parameter)
-- [3] updateCustomApiResponseProperty outputProp (Property changed)
+If validation fails:
+
+```text
+Error: Sync plan blocked by 1 validation error(s). Run 'api validate' for the full report.
+First error: [CCDV_PARAM_LOGICAL_ENTITY_NAME_NOT_ALLOWED] Request parameter 'NewParameter' has type 'EntityCollection' which does not support logicalEntityName.
 ```
 
 ### Execute a single operation
 
-Use `--simulate` to execute a single operation as a dry run without applying changes:
-
 ```bash
-dvc api exec-op --operation-id "op-0010-updateCustomApi-ccsm_MyCustomApi-<uuid>" --simulate
+# dry run:
+dvc api exec-op -o "op-0010-createRequestParameter-NewParameter-<uuid>" --simulate
+
+# live:
+dvc api exec-op -o "op-0010-createRequestParameter-NewParameter-<uuid>"
 ```
 
 **Output:**
 
 ```text
-Operation executed: op-0010-updateCustomApi-ccsm_MyCustomApi-<uuid>
-Status: simulated
+Operation: op-0010-createRequestParameter-NewParameter-<uuid>
+Status: succeeded
+Message: createRequestParameter for NewParameter completed successfully.
+Simulated: no
+State file: /path/to/output/ccsm_MyCustomApi.syncstate.json
 ```
 
-Run the same command without `--simulate` to execute the operation against the connected Dataverse environment:
-
-```bash
-dvc api exec-op --operation-id "op-0010-updateCustomApi-ccsm_MyCustomApi-<uuid>"
-```
-
-> Warning: Without `--simulate`, the operation is executed against the connected Dataverse environment and may create, update, or delete Custom API metadata.
+> **Warning:** Without `--simulate`, the operation is executed against the connected Dataverse environment.
 
 ### Execute full plan
 
-Use `--simulate` to execute the full plan as a dry run without applying changes:
-
 ```bash
+# dry run:
 dvc api exec-plan --simulate
+
+# live:
+dvc api exec-plan
 ```
 
 **Output:**
 
 ```text
 Plan executed for: ccsm_MyCustomApi
-Status: simulated
-State file: /path/to/state/ccsm_MyCustomApi.syncstate.json
-
-- [1] updateCustomApi ccsm_MyCustomApi: simulated
-- [2] createCustomApiRequestParameter inputParam: simulated
-- [3] updateCustomApiResponseProperty outputProp: simulated
+Status: succeeded
+State file: /path/to/output/ccsm_MyCustomApi.syncstate.json
+- [10] createRequestParameter NewParameter: succeeded
+- [20] updateCustomApi ccsm_MyCustomApi: succeeded
 ```
 
-Run the command without `--simulate` to execute all pending operations in the plan against the connected Dataverse environment:
+> **Warning:** Without `--simulate`, all operations in the sync plan are executed in sequence against the connected Dataverse environment.
 
-```bash
-dvc api exec-plan
-```
+### Check metadata consistency
 
-> Warning: Without `--simulate`, all pending operations in the sync plan are executed in sequence and may create, update, or delete Custom API metadata.
-
-### Check metadata
+Compares the local definition with current Dataverse metadata and reports field-level mismatches. Requires a network connection.
 
 ```bash
 dvc api check-metadata
 ```
 
-Checks whether the local definition differs from the current Dataverse metadata.
+**Output:**
+
+```text
+Metadata check for: ccsm_MyCustomApi
+Status: ok
+No metadata mismatches found.
+```
 
 ### Remove local artifacts
 
+Removes local cached and exported files. Does not delete the Custom API from Dataverse.
+
 ```bash
 dvc api remove
-# or specifically:
+# or with explicit name:
 dvc api remove -n ccsm_MyCustomApi
 ```
 
-This removes local cached/exported artifacts. It does not delete the Custom API from Dataverse.
-
-## Typical workflow
+## Typical workflows
 
 ### 1. Setup and connect
 
 ```bash
 # Create auth configuration
 cp auth.devicecode.example.json auth.json
-# edit auth.json with your tenant ID and client ID
+# Edit auth.json with your tenant ID and client ID
 
 # Connect to an environment
 dvc connect -u "https://your-org.crm.dynamics.com"
@@ -361,94 +446,123 @@ dvc connect -u "https://your-org.crm.dynamics.com"
 ### 2. Edit an existing Custom API
 
 ```bash
-# list APIs
+# List available APIs
 dvc api list
 
-# set an active API
+# Set the API as active
 dvc api use -n ccsm_ExistingApi
 
-# export for editing
+# Export the current Dataverse definition
 dvc api export
 
-# edit the local JSON file
-# for example: add a request parameter or change a description
+# Edit the local JSON file
+# e.g. add a request parameter, change a description
 
-# check diff
+# Validate the local definition — fix any errors before proceeding
+dvc api validate
+
+# Review what changed vs. Dataverse
 dvc api diff
 
-# create a sync plan
+# Create a sync plan (also validates internally)
 dvc api plan
 
-# simulate execution first
+# Dry run first
 dvc api exec-plan --simulate
 
-# execute live after reviewing the plan
+# Apply after reviewing
 dvc api exec-plan
 ```
 
 ### 3. Create a new Custom API
 
 ```bash
-# create a new local JSON file based on an exported structure
-# example: /path/to/output/ccsm_NewApi.json
+# Create a new JSON catalog file manually (see structure below)
+# e.g. .cache/customapis/ccsm_NewApi.json
 
-# set the API as active even if it does not exist in Dataverse yet
+# Set the API as active even before it exists in Dataverse
 dvc api use -n ccsm_NewApi
 
-# create a sync plan
+# Validate the local definition before planning
+dvc api validate
+
+# Create a sync plan
 dvc api plan
 
-# simulate execution first
+# Dry run first
 dvc api exec-plan --simulate
 
-# execute live after reviewing the plan
+# Apply after reviewing
 dvc api exec-plan
 ```
 
+### Why validate before plan?
+
+`api validate` is a local-only check — no network call, instant feedback. It catches issues that Dataverse would reject with a 400 error (e.g. `logicalEntityName` on an `EntityCollection` parameter, missing publisher prefix, invalid type values).
+
+`api plan` runs the same validation internally and will block if blocking errors are found. Running `api validate` first gives you the full structured diagnostic report — including non-blocking warnings and informational hints — before attempting to build the plan.
+
 ## Custom API JSON structure
 
-A typical Custom API JSON file looks like:
+The catalog file written by `api export` and read by `api plan` / `api validate`:
 
 ```json
 {
-  "uniqueName": "ccsm_MyCustomApi",
-  "displayName": "My Custom API",
-  "description": "Description of the API",
-  "bindingType": "Function",
-  "boundEntityLogicalName": null,
-  "isPrivate": false,
-  "allowedCustomProcessingStepType": "None",
-  "executePrivilegeName": null,
-  "isFunction": true,
-  "isComposable": false,
-  "pluginType": {
-    "uniqueName": "ccsm_MyPluginType"
+  "schemaVersion": "1.0",
+  "source": {
+    "exportedAtUtc": "2025-01-15T10:00:00.000Z",
+    "environmentUrl": "https://your-org.crm.dynamics.com"
   },
-  "requestParameters": [
+  "customApis": [
     {
-      "uniqueName": "inputParam",
-      "displayName": "Input Parameter",
-      "description": "Description",
-      "type": "String",
-      "isOptional": false
-    }
-  ],
-  "responseProperties": [
-    {
-      "uniqueName": "outputProp",
-      "displayName": "Output Property",
-      "description": "Description",
-      "type": "String"
+      "uniqueName": "ccsm_MyCustomApi",
+      "name": "ccsm_MyCustomApi",
+      "displayName": "My Custom API",
+      "description": "Processes a survey recipient record.",
+      "bindingType": "Global",
+      "isFunction": false,
+      "isPrivate": false,
+      "workflowSdkStepEnabled": false,
+      "allowedCustomProcessingStepType": "None",
+      "requestParameters": [
+        {
+          "uniqueName": "RecipientId",
+          "name": "ccsm_MyCustomApi.RecipientId",
+          "displayName": "Recipient ID",
+          "description": "ID of the recipient record.",
+          "type": "EntityReference",
+          "logicalEntityName": "ccsm_surveyrecipient",
+          "isOptional": false
+        }
+      ],
+      "responseProperties": [
+        {
+          "uniqueName": "Success",
+          "name": "ccsm_MyCustomApi.Success",
+          "displayName": "Success",
+          "description": "Whether the operation succeeded.",
+          "type": "Boolean"
+        }
+      ]
     }
   ]
 }
 ```
 
+**Field notes:**
+
+| Field | Values / constraints |
+|-------|----------------------|
+| `bindingType` | `"Global"`, `"Entity"`, `"EntityCollection"` |
+| `allowedCustomProcessingStepType` | `"None"`, `"AsyncOnly"`, `"SyncAndAsync"` |
+| `type` (parameter/property) | `"Boolean"`, `"DateTime"`, `"Decimal"`, `"Entity"`, `"EntityCollection"`, `"EntityReference"`, `"Float"`, `"Integer"`, `"Money"`, `"Picklist"`, `"String"`, `"StringArray"`, `"Guid"` |
+| `logicalEntityName` | Only set for `Entity` or `EntityReference`; must be absent for all other types |
+| `name` (parameter/property) | Recommended format: `{customApiUniqueName}.{childUniqueName}` |
+| `uniqueName` (Custom API) | Must include publisher prefix, e.g. `ccsm_MyApi`; only letters, digits, underscores |
+
 ## Publishing notes
 
-The package is built from TypeScript.
-
-The repository does not need to contain committed `dist/` files. The compiled `dist/` output is generated during build and included in the published npm package.
+The package is built from TypeScript. The repository does not need committed `dist/` files; they are generated during build and included in the published npm package.
 
 Before publishing, verify the package contents:
 
@@ -467,22 +581,18 @@ LICENSE
 package.json
 ```
 
-For scoped public packages, publish with:
+For scoped public packages:
 
 ```bash
 npm publish --access public
 ```
-
-## Error handling
-
-Commands return structured error information. Unexpected failures print a stack trace.
 
 ## Requirements
 
 - Node.js 16+
 - npm
 - Access to a Dataverse environment
-- Correct Azure AD / Microsoft Entra ID App Registration
+- Azure AD / Microsoft Entra ID App Registration with the correct permissions
 - Sufficient Dataverse privileges to read or modify Custom API metadata
 
 ## License
@@ -497,17 +607,11 @@ Andreas Brunsmann
 - GitHub: https://github.com/brunsforge
 - Repository: https://github.com/brunsforge/dataverse-custom-api
 
-## Contributors
-
-- Andreas Brunsmann
-
 ---
 
 # Dataverse Custom API CLI
 
-Eine Node.js/TypeScript-basierte CLI zum Verwalten von Dataverse Custom APIs. Sie ermöglicht das Lesen, Exportieren, Bearbeiten, Vergleichen, Planen und Synchronisieren von Custom-API-Definitionen zwischen lokalen JSON-Dateien und Dataverse-Umgebungen.
-
-Das GitHub-Repository enthält den TypeScript-Quellcode in `src/`. Der kompilierte `dist/`-Output wird beim Build erzeugt und zusammen mit `src/` im veröffentlichten npm-Paket ausgeliefert.
+Eine Node.js/TypeScript-basierte CLI zum Verwalten von Dataverse Custom APIs. Sie ermöglicht das Lesen, Exportieren, Bearbeiten, **Validieren**, Vergleichen, Planen und Synchronisieren von Custom-API-Definitionen zwischen lokalen JSON-Dateien und Dataverse-Umgebungen.
 
 ## Installation
 
@@ -515,480 +619,264 @@ Das GitHub-Repository enthält den TypeScript-Quellcode in `src/`. Der kompilier
 npm install -g @brunsforge/dataverse-custom-api
 ```
 
-Oder aus dem Quellcode:
-
-```bash
-git clone https://github.com/brunsforge/dataverse-custom-api.git
-cd dataverse-custom-api
-npm install
-npm run build
-npm link
-```
-
 ## Übersicht der Features
 
-- **Verbindung zu Dataverse-Umgebungen**: mehrere Authentifizierungsmethoden (Device Code, Client Secret, Interactive Browser)
-- **Environment-Management**: Environments speichern, auflisten, wechseln und entfernen
+- **Verbindung zu Dataverse-Umgebungen**: Device Code, Client Secret, Interactive Browser
+- **Environment-Management**: speichern, auflisten, wechseln, entfernen
 - **Custom API-Verwaltung**:
   - vorhandene Custom APIs auflisten
-  - Custom APIs als lokale JSON-Artefakte exportieren
-  - Custom API-Definitionen lokal bearbeiten
-  - lokale Definitionen mit Dataverse-Metadaten vergleichen
-  - Sync-Pläne erstellen
+  - als lokale JSON-Artefakte exportieren
+  - lokal bearbeiten
+  - **lokale Definition validieren** — erkennt Typfehler, fehlende Felder und ungültige Kombinationen mit strukturierten Diagnostics
+  - mit Dataverse-Metadaten vergleichen
+  - Sync-Pläne erstellen (Validierung läuft automatisch; Plan wird bei Fehlern blockiert)
   - einzelne Sync-Operationen ausführen
   - vollständige Sync-Pläne ausführen
-  - Custom-API-Metadaten in Dataverse erstellen, ändern oder löschen
 - **Simulationsmodus**: Operationen mit `--simulate` vorab prüfen
-- **JSON- und menschenlesbare Ausgaben**: alle Befehle unterstützen `--json`
+- **JSON und menschenlesbare Ausgaben**: alle Befehle unterstützen `--json`
 
-> Achtung: Befehle, die ohne `--simulate` ausgeführt werden, können Custom-API-Metadaten in der verbundenen Dataverse-Umgebung erstellen, ändern oder löschen.
+> **Achtung:** Befehle, die ohne `--simulate` ausgeführt werden, können Custom-API-Metadaten in der verbundenen Dataverse-Umgebung erstellen, ändern oder löschen.
 
-## Authentifizierung und Verbindung
-
-### Authentifizierungsmethoden
-
-Die CLI unterstützt drei Authentifizierungsmethoden:
-
-1. **Device Code Flow** (empfohlen für interaktive Nutzung)
-2. **Client Secret** (für Automatisierung/App-Only-Zugriff)
-3. **Interactive Browser** (für browserbasiertes Login)
-
-### Konfiguration
-
-Erstelle eine `auth.json`-Datei im Projektstamm basierend auf einer der Beispiel-Dateien:
-
-- `auth.devicecode.example.json` → Device Code Auth
-- `auth.clientsecret.example.json` → Client Secret Auth
-- `auth.interactivebrowser.example.json` → Interactive Browser Auth
-
-#### Device Code Auth
-
-```json
-{
-  "tenantId": "your-tenant-id",
-  "clientId": "your-client-id",
-  "authMode": "deviceCode"
-}
-```
-
-**App Registration Setup:**
-
-- Erstelle eine Azure AD / Microsoft Entra ID App Registration
-- Füge API-Berechtigungen hinzu:
-  - Dynamics CRM > user_impersonation
-- Setze eine Redirect URI:
-  - `https://login.microsoftonline.com/common/oauth2/nativeclient`
-- Kein Client Secret erforderlich
-
-#### Client Secret Auth
-
-```json
-{
-  "tenantId": "your-tenant-id",
-  "clientId": "your-app-only-client-id",
-  "clientSecret": "your-client-secret",
-  "authMode": "clientSecret"
-}
-```
-
-**App Registration Setup:**
-
-- Erstelle eine Azure AD / Microsoft Entra ID App Registration
-- Erstelle ein Client Secret
-- Füge API-Berechtigungen hinzu:
-  - Dynamics CRM > user_impersonation für delegierten Zugriff
-  - oder die erforderlichen Dataverse Application Permissions für App-Only-Zugriff
-- Keine Redirect URI erforderlich
-
-#### Interactive Browser Auth
-
-```json
-{
-  "tenantId": "your-tenant-id",
-  "clientId": "your-client-id",
-  "authMode": "interactiveBrowser"
-}
-```
-
-**App Registration Setup:**
-
-- Ähnlich wie Device Code Auth, aber für browserbasierte Authentifizierung
-
-### Verbindung zu einem Environment
+## Verbindung
 
 ```bash
 dvc connect -u "https://your-org.crm.dynamics.com"
 ```
 
-**Ausgabe:**
-
 ```text
-Verbunden und gecacht: https://your-org.crm.dynamics.com
-Auth-Modus: deviceCode
-Cache-Datei: /path/to/cache/environment.json
-```
-
-Mit JSON-Ausgabe:
-
-```bash
-dvc connect -u "https://your-org.crm.dynamics.com" --json
+Connected and cached: https://your-org.crm.dynamics.com
+Auth mode: deviceCode
 ```
 
 ## Environment-Management
 
-### Environments auflisten
-
 ```bash
-dvc env list
-```
-
-**Ausgabe:**
-
-```text
-* env-001 (Production) -> https://prod.crm.dynamics.com
-- env-002 (Development) -> https://dev.crm.dynamics.com
-```
-
-### Aktives Environment anzeigen
-
-```bash
-dvc env current
-```
-
-**Ausgabe:**
-
-```text
-Aktives Environment: env-001
-URL: https://prod.crm.dynamics.com
-```
-
-### Environment wechseln
-
-```bash
-dvc env use -i env-002
-```
-
-**Ausgabe:**
-
-```text
-Aktives Environment gesetzt: env-002
-```
-
-### Environment entfernen
-
-```bash
-dvc env remove -i env-001
+dvc env list       # alle gespeicherten Environments auflisten
+dvc env current    # aktives Environment anzeigen
+dvc env use -i <id>     # Environment wechseln
+dvc env remove -i <id>  # Environment entfernen
 ```
 
 ## Custom API-Management
 
-### Custom APIs auflisten
+### Auflisten und auswählen
 
 ```bash
-dvc api list
+dvc api list               # alle Custom APIs auflisten
+dvc api current            # aktive API anzeigen
+dvc api use -n ccsm_MyApi  # API als aktiv setzen
 ```
 
-**Ausgabe:**
-
-```text
-* ccsm_MyCustomApi (aktiv)
-- ccsm_AnotherApi
-- sample_CustomFunction
-```
-
-Mit JSON-Ausgabe:
-
-```bash
-dvc api list --json
-```
-
-### Aktive Custom API anzeigen
-
-```bash
-dvc api current
-```
-
-**Ausgabe:**
-
-```text
-Aktive API: ccsm_MyCustomApi
-Cache-Datei: /path/to/cache/api/ccsm_MyCustomApi.json
-```
-
-### Custom API als aktiv setzen
-
-```bash
-dvc api use -n ccsm_MyCustomApi
-```
-
-**Ausgabe:**
-
-```text
-Aktive API gesetzt: ccsm_MyCustomApi
-Cache-Datei: /path/to/cache/api/ccsm_MyCustomApi.json
-```
-
-### Custom API exportieren
+### Exportieren
 
 ```bash
 dvc api export
-# oder spezifisch:
-dvc api export -n ccsm_MyCustomApi
+dvc api export -n ccsm_MyApi
 ```
 
-**Ausgabe:**
+### Lokale Definition validieren
+
+Prüft die lokale JSON-Datei gegen Dataverse-Regeln. Keine Netzwerkverbindung erforderlich.
+
+```bash
+dvc api validate
+dvc api validate -n ccsm_MyApi
+```
+
+**Ausgabe ohne Probleme:**
 
 ```text
-Exportiert: /path/to/output/ccsm_MyCustomApi.json
+Validation for: ccsm_MyApi
+Status: succeeded
+No issues found.
 ```
 
-### Lokale Änderungen vergleichen
+**Ausgabe mit Fehlern:**
+
+```text
+Validation for: ccsm_MyApi
+Status: validationFailed
+
+ERROR [CCDV_PARAM_LOGICAL_ENTITY_NAME_NOT_ALLOWED] [ccsm_MyApi > NewParameter].logicalEntityName
+      Request parameter 'NewParameter' has type 'EntityCollection' which does not support logicalEntityName.
+      Fix: Remove logicalEntityName or change the parameter type to Entity or EntityReference.
+
+Summary: 1 error(s), 0 warning(s), 0 info(s)
+```
+
+Mit `--json` wird ein vollständiges `CcdvCommandResult`-Envelope zurückgegeben (für VS-Code-Extension-Integration).
+
+**Geprüfte Regeln (Auswahl):**
+
+- `uniqueName`: Pflichtfeld, max. 128 Zeichen, muss Publisher-Präfix enthalten (z. B. `ccsm_`), nur Buchstaben/Ziffern/Unterstriche
+- `name` und `displayName`: Pflichtfeld, max. 100 Zeichen
+- `description`: max. 300 Zeichen
+- `bindingType`: `Global`, `Entity` oder `EntityCollection`
+- `boundEntityLogicalName`: Pflicht bei `Entity`/`EntityCollection`; muss fehlen bei `Global`
+- `logicalEntityName` an Parametern/Properties: nur erlaubt bei Type `Entity` oder `EntityReference`
+- Functions (`isFunction: true`): mindestens eine Response Property erforderlich
+- Functions: keine offenen Entity-/EntityCollection-Request-Parameter (ohne `logicalEntityName`)
+
+> **Hinweis:** `api plan` läuft dieselbe Validierung intern ab. Bei blockierenden Fehlern wird kein Plan erstellt; die Fehlermeldung verweist auf `api validate` für den vollständigen Report.
+
+### Vergleichen
 
 ```bash
 dvc api diff
-# oder spezifisch:
-dvc api diff -n ccsm_MyCustomApi
+dvc api diff -n ccsm_MyApi
 ```
-
-**Ausgabe:**
-
-```text
-Diff für ccsm_MyCustomApi:
-- Parameter 'inputParam' hinzugefügt
-- Response Property 'outputProp' geändert
-```
-
-Mit `--json` erhältst du eine maschinenlesbare Diff-Ausgabe.
 
 ### Sync-Plan erstellen
 
 ```bash
 dvc api plan
-# oder spezifisch:
-dvc api plan -n ccsm_MyCustomApi
+dvc api plan -n ccsm_MyApi
 ```
 
-**Ausgabe:**
-
 ```text
-Plan erzeugt: /path/to/plans/ccsm_MyCustomApi.syncplan.json
-State-Datei: /path/to/state/ccsm_MyCustomApi.syncstate.json
-Operationen: 3
-Destruktive Änderungen erforderlich: Nein
+Plan created: .cache/customapis/ccsm_MyApi.syncplan.json
+State file: .cache/customapis/ccsm_MyApi.syncstate.json
+Operations: 2
+Destructive changes required: no
+- [10] createRequestParameter NewParameter (new)
+- [20] updateCustomApi ccsm_MyApi (changed)
+```
 
-- [1] updateCustomApi ccsm_MyCustomApi (Parameter hinzugefügt)
-- [2] createCustomApiRequestParameter inputParam (Neuer Parameter)
-- [3] updateCustomApiResponseProperty outputProp (Property geändert)
+### Ausführen
+
+```bash
+dvc api exec-plan --simulate   # Dry Run
+dvc api exec-plan              # live ausführen
 ```
 
 ### Einzelne Operation ausführen
 
-Nutze `--simulate`, um eine einzelne Operation als Dry Run auszuführen, ohne Änderungen anzuwenden:
-
 ```bash
-dvc api exec-op --operation-id "op-0010-updateCustomApi-ccsm_MyCustomApi-<uuid>" --simulate
+dvc api exec-op -o "<operationId>" --simulate
+dvc api exec-op -o "<operationId>"
 ```
 
-**Ausgabe:**
-
-```text
-Operation ausgeführt: op-0010-updateCustomApi-ccsm_MyCustomApi-<uuid>
-Status: simulated
-```
-
-Führe denselben Befehl ohne `--simulate` aus, um die Operation gegen die verbundene Dataverse-Umgebung auszuführen:
-
-```bash
-dvc api exec-op --operation-id "op-0010-updateCustomApi-ccsm_MyCustomApi-<uuid>"
-```
-
-> Achtung: Ohne `--simulate` wird die Operation gegen die verbundene Dataverse-Umgebung ausgeführt und kann Custom-API-Metadaten erstellen, ändern oder löschen.
-
-### Kompletten Plan ausführen
-
-Nutze `--simulate`, um den vollständigen Plan als Dry Run auszuführen, ohne Änderungen anzuwenden:
-
-```bash
-dvc api exec-plan --simulate
-```
-
-**Ausgabe:**
-
-```text
-Plan ausgeführt für: ccsm_MyCustomApi
-Status: simulated
-State-Datei: /path/to/state/ccsm_MyCustomApi.syncstate.json
-
-- [1] updateCustomApi ccsm_MyCustomApi: simulated
-- [2] createCustomApiRequestParameter inputParam: simulated
-- [3] updateCustomApiResponseProperty outputProp: simulated
-```
-
-Führe den Befehl ohne `--simulate` aus, um alle offenen Operationen des Plans gegen die verbundene Dataverse-Umgebung auszuführen:
-
-```bash
-dvc api exec-plan
-```
-
-> Achtung: Ohne `--simulate` werden alle offenen Operationen des Sync-Plans in Reihenfolge ausgeführt und können Custom-API-Metadaten erstellen, ändern oder löschen.
-
-### Metadaten prüfen
+### Metadaten-Konsistenz prüfen
 
 ```bash
 dvc api check-metadata
 ```
 
-Prüft, ob lokale Definition mit aktuellen Dataverse-Metadaten übereinstimmt.
-
 ### Lokale Artefakte entfernen
 
 ```bash
 dvc api remove
-# oder spezifisch:
-dvc api remove -n ccsm_MyCustomApi
+dvc api remove -n ccsm_MyApi
 ```
-
-Dies entfernt lokale gecachte/exportierte Artefakte. Die Custom API wird dadurch nicht aus Dataverse gelöscht.
 
 ## Typischer Workflow
 
-### 1. Setup und Verbindung
+### Vorhandene Custom API bearbeiten
 
 ```bash
-# Auth-Konfiguration erstellen
-cp auth.devicecode.example.json auth.json
-# auth.json bearbeiten mit Tenant-ID und Client-ID
-
-# Mit Environment verbinden
-dvc connect -u "https://your-org.crm.dynamics.com"
-```
-
-### 2. Vorhandene Custom API bearbeiten
-
-```bash
-# APIs auflisten
 dvc api list
-
-# API als aktiv setzen
 dvc api use -n ccsm_ExistingApi
 
-# Exportieren für Bearbeitung
+# Aktuelle Definition aus Dataverse holen
 dvc api export
 
-# Lokale JSON-Datei bearbeiten
-# z. B. Parameter hinzufügen oder Beschreibung ändern
+# JSON-Datei lokal bearbeiten (z. B. Parameter hinzufügen)
 
-# Diff prüfen
+# Lokale Definition validieren — Fehler beheben, bevor der Plan erstellt wird
+dvc api validate
+
+# Diff mit Dataverse prüfen
 dvc api diff
 
-# Plan erstellen
+# Sync-Plan erstellen (validiert intern)
 dvc api plan
 
-# zuerst simuliert ausführen
+# Dry Run
 dvc api exec-plan --simulate
 
-# nach Prüfung live ausführen
+# Live ausführen nach Prüfung
 dvc api exec-plan
 ```
 
-### 3. Neue Custom API erstellen
+### Neue Custom API erstellen
 
 ```bash
-# Neue JSON-Datei manuell erstellen, basierend auf exportierter Struktur
-# Beispiel: /path/to/output/ccsm_NewApi.json
+# Neue JSON-Katalog-Datei erstellen (siehe Struktur unten)
+# z. B. .cache/customapis/ccsm_NewApi.json
 
-# API als aktiv setzen, auch wenn sie noch nicht in Dataverse existiert
 dvc api use -n ccsm_NewApi
 
-# Plan erstellen
+# Lokale Definition validieren, bevor der Plan erstellt wird
+dvc api validate
+
+# Sync-Plan erstellen
 dvc api plan
 
-# zuerst simuliert ausführen
+# Dry Run
 dvc api exec-plan --simulate
 
-# nach Prüfung live ausführen
+# Live ausführen
 dvc api exec-plan
 ```
+
+### Warum vor dem Plan validieren?
+
+`api validate` ist ein rein lokaler Check — keine Netzwerkverbindung, sofortiges Feedback. Es erkennt alle Probleme, die Dataverse mit einem 400-Fehler ablehnen würde, sowie Warnungen und Hinweise zu empfohlenen Formaten.
+
+`api plan` läuft dieselbe Validierung intern ab und blockiert bei blockierenden Fehlern. Mit `api validate` vorab erhältst du den vollständigen strukturierten Report — inklusive Warnungen und Infos — bevor du versuchst, einen Plan zu erstellen.
 
 ## JSON-Struktur der Custom API
 
-Eine typische Custom API JSON-Datei sieht so aus:
-
 ```json
 {
-  "uniqueName": "ccsm_MyCustomApi",
-  "displayName": "My Custom API",
-  "description": "Beschreibung der API",
-  "bindingType": "Function",
-  "boundEntityLogicalName": null,
-  "isPrivate": false,
-  "allowedCustomProcessingStepType": "None",
-  "executePrivilegeName": null,
-  "isFunction": true,
-  "isComposable": false,
-  "pluginType": {
-    "uniqueName": "ccsm_MyPluginType"
+  "schemaVersion": "1.0",
+  "source": {
+    "exportedAtUtc": "2025-01-15T10:00:00.000Z",
+    "environmentUrl": "https://your-org.crm.dynamics.com"
   },
-  "requestParameters": [
+  "customApis": [
     {
-      "uniqueName": "inputParam",
-      "displayName": "Input Parameter",
-      "description": "Beschreibung",
-      "type": "String",
-      "isOptional": false
-    }
-  ],
-  "responseProperties": [
-    {
-      "uniqueName": "outputProp",
-      "displayName": "Output Property",
-      "description": "Beschreibung",
-      "type": "String"
+      "uniqueName": "ccsm_MyCustomApi",
+      "name": "ccsm_MyCustomApi",
+      "displayName": "My Custom API",
+      "description": "Processes a survey recipient record.",
+      "bindingType": "Global",
+      "isFunction": false,
+      "isPrivate": false,
+      "workflowSdkStepEnabled": false,
+      "allowedCustomProcessingStepType": "None",
+      "requestParameters": [
+        {
+          "uniqueName": "RecipientId",
+          "name": "ccsm_MyCustomApi.RecipientId",
+          "displayName": "Recipient ID",
+          "description": "ID of the recipient record.",
+          "type": "EntityReference",
+          "logicalEntityName": "ccsm_surveyrecipient",
+          "isOptional": false
+        }
+      ],
+      "responseProperties": [
+        {
+          "uniqueName": "Success",
+          "name": "ccsm_MyCustomApi.Success",
+          "displayName": "Success",
+          "description": "Whether the operation succeeded.",
+          "type": "Boolean"
+        }
+      ]
     }
   ]
 }
 ```
 
-## Publishing notes
-
-Das Paket wird aus TypeScript gebaut.
-
-Das Repository muss keine committed `dist/`-Dateien enthalten. Der kompilierte `dist/`-Output wird beim Build erzeugt und im veröffentlichten npm-Paket ausgeliefert.
-
-Prüfe vor dem Publish den Paketinhalt:
-
-```bash
-npm run build
-npm pack --dry-run
-```
-
-Der Dry Run sollte mindestens enthalten:
-
-```text
-dist/
-src/
-README.md
-LICENSE
-package.json
-```
-
-Für scoped public packages veröffentlichst du mit:
-
-```bash
-npm publish --access public
-```
-
-## Fehlerbehandlung
-
-Alle Befehle geben strukturierte Fehler aus. Bei unerwarteten Fehlern wird ein Stack-Trace angezeigt.
-
 ## Voraussetzungen
 
 - Node.js 16+
 - npm
-- Zugriff auf Dataverse-Environment
+- Zugriff auf eine Dataverse-Umgebung
 - Korrekte Azure AD / Microsoft Entra ID App Registration
-- Ausreichende Dataverse-Berechtigungen zum Lesen oder Ändern von Custom-API-Metadaten
+- Ausreichende Dataverse-Berechtigungen
 
 ## Lizenz
 
@@ -1001,7 +889,3 @@ Andreas Brunsmann
 - E-Mail: oss@andreasbrunsmann.de
 - GitHub: https://github.com/brunsforge
 - Repository: https://github.com/brunsforge/dataverse-custom-api
-
-## Mitwirkende
-
-- Andreas Brunsmann

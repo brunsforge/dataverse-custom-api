@@ -24,6 +24,8 @@ import type {
   ListCustomApisResult,
   SelectCustomApiOptions,
   SelectCustomApiResult,
+  ValidateCustomApiOptions,
+  ValidateCustomApiResult,
 } from "../models/public-types.js";
 import type { RuntimeContext } from "../models/runtime-context.js";
 import {
@@ -41,6 +43,7 @@ import {
   loadLocalCustomApiCatalog,
   removeCustomApi,
   setActiveCustomApi,
+  validateLocalCatalog,
   type CurrentCustomApiResult,
   type RemoveCustomApiResult,
 } from "./customApiService.js";
@@ -57,6 +60,7 @@ export interface CoreFacade {
   loadLocalCustomApiCatalog(
     options?: LoadLocalCustomApiCatalogOptions
   ): Promise<LoadLocalCustomApiCatalogResult>;
+  validateCustomApi(options?: ValidateCustomApiOptions): Promise<ValidateCustomApiResult>;
   diffCustomApi(options?: DiffCustomApiOptions): Promise<DiffCustomApiResult>;
   buildCustomApiSyncPlan(
     options?: BuildCustomApiSyncPlanOptions
@@ -110,6 +114,10 @@ export function createCoreFacade(context?: RuntimeContext): CoreFacade {
       options?: LoadLocalCustomApiCatalogOptions
     ): Promise<CustomApiCatalogModel> {
       return loadLocalCustomApiCatalog(options?.uniqueName, context);
+    },
+
+    async validateCustomApi(options?: ValidateCustomApiOptions): Promise<ValidateCustomApiResult> {
+      return validateLocalCatalog(options?.uniqueName, context);
     },
 
     async diffCustomApi(options?: DiffCustomApiOptions): Promise<DiffCustomApiResult> {

@@ -21,11 +21,14 @@ import type {
   CustomApiSyncPlan,
   SemanticDiffFieldChange,
 } from "../models/customApiModels.js";
+import type { CcdvCommandResult } from "../models/diagnosticModels.js";
 import type { RuntimeContext } from "../models/runtime-context.js";
 import type {
   CheckCustomApiMetadataResult,
   MetadataMismatchItem,
+  ValidateCustomApiResult,
 } from "../models/public-types.js";
+import { validateCustomApiCatalog } from "../validation/customApiValidator.js";
 import { loadAuthConfig } from "../auth/authConfig.js";
 import { ensureCacheFolders, readJsonFile, writeJsonFile, fileExists } from "../utils/fileSystem.js";
 import {
@@ -200,7 +203,7 @@ export async function removeCustomApi(
   const uniqueName = uniqueNameArg ?? activeUniqueName;
 
   if (!uniqueName) {
-    throw new Error("Keine Custom API angegeben und keine aktive API gesetzt.");
+    throw new Error("No custom API specified and no active API set.");
   }
 
   const outputRoot = await getCustomApiOutputRootPath(context);
@@ -236,7 +239,7 @@ export async function exportCustomApi(
   const uniqueName = uniqueNameArg ?? (await getActiveCustomApiUniqueName(context));
 
   if (!uniqueName) {
-    throw new Error("Keine Custom API angegeben und keine aktive API gesetzt.");
+    throw new Error("No custom API specified and no active API set.");
   }
 
   const client = new DataverseClient(env.environmentUrl, context);
@@ -263,7 +266,7 @@ export async function loadLocalCustomApiCatalog(
   const uniqueName = uniqueNameArg ?? (await getActiveCustomApiUniqueName(context));
 
   if (!uniqueName) {
-    throw new Error("Keine Custom API angegeben und keine aktive API gesetzt.");
+    throw new Error("No custom API specified and no active API set.");
   }
 
   const outputRoot = await getCustomApiOutputRootPath(context);
@@ -490,7 +493,7 @@ function ensureUniqueName(
 ): string {
   const uniqueName = uniqueNameArg ?? activeUniqueName;
   if (!uniqueName) {
-    throw new Error("Keine Custom API angegeben und keine aktive API gesetzt.");
+    throw new Error("No custom API specified and no active API set.");
   }
 
   return uniqueName;
@@ -514,29 +517,175 @@ function createExecutionState(plan: CustomApiSyncPlan): CustomApiSyncExecutionSt
   };
 }
 
-function buildErrorObject(error: unknown): CustomApiSyncOperationError {
-  if (error instanceof Error) {
-    const err: CustomApiSyncOperationError = {
-      name: error.name || "Error",
-      message: error.message,
-    };
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
-    const anyError = error as Error & { code?: string; details?: string };
-    if (anyError.code) {
-      err.code = anyError.code;
-    }
-
-    if (anyError.details) {
-      err.details = anyError.details;
-    }
-
-    return err;
+function getRecordProperty(
+  value: unknown,
+  propertyName: string
+): Record<string, unknown> | undefined {
+  if (!isRecord(value)) {
+    return undefined;
   }
 
-  return {
-    name: "Error",
-    message: String(error),
+  const propertyValue = value[propertyName];
+  return isRecord(propertyValue) ? propertyValue : undefined;
+}
+
+function getStringProperty(value: unknown, propertyName: string): string | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const propertyValue = value[propertyName];
+  return typeof propertyValue === "string" ? propertyValue : undefined;
+}
+
+function getNumberProperty(value: unknown, propertyName: string): number | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const propertyValue = value[propertyName];
+  return typeof propertyValue === "number" ? propertyValue : undefined;
+}
+
+function parseAxiosPayload(data: unknown): unknown {
+  if (typeof data !== "string") {
+    return data;
+  }
+
+  try {
+    return JSON.parse(data);
+  } catch {
+    return data;
+  }
+}
+
+function getHeaderValue(headers: unknown, names: string[]): string | undefined {
+  if (!isRecord(headers)) {
+    return undefined;
+  }
+
+  for (const name of names) {
+    const directValue = headers[name];
+    if (typeof directValue === "string") {
+      return directValue;
+    }
+
+    const lowerCaseValue = headers[name.toLowerCase()];
+    if (typeof lowerCaseValue === "string") {
+      return lowerCaseValue;
+    }
+  }
+
+  return undefined;
+}
+
+function buildErrorObject(error: unknown): CustomApiSyncOperationError {
+  const errorRecord = isRecord(error) ? error : undefined;
+  const response = getRecordProperty(error, "response");
+  const config = getRecordProperty(error, "config");
+  const responseData = response?.data;
+  const dataverseError = getRecordProperty(responseData, "error");
+
+  const name =
+    getStringProperty(error, "name") ??
+    (error instanceof Error ? error.name : undefined) ??
+    "Error";
+
+  const message =
+    getStringProperty(error, "message") ??
+    (error instanceof Error ? error.message : undefined) ??
+    String(error);
+
+  const err: CustomApiSyncOperationError = {
+    name,
+    message,
   };
+
+  const code = getStringProperty(error, "code");
+  if (code) {
+    err.code = code;
+  }
+
+  const details = getStringProperty(error, "details");
+  if (details) {
+    err.details = details;
+  }
+
+  const httpStatus = getNumberProperty(response, "status");
+  if (httpStatus !== undefined) {
+    err.httpStatus = httpStatus;
+  }
+
+  const statusText = getStringProperty(response, "statusText");
+  if (statusText) {
+    err.statusText = statusText;
+  }
+
+  const dataverseErrorCode = getStringProperty(dataverseError, "code");
+  if (dataverseErrorCode) {
+    err.dataverseErrorCode = dataverseErrorCode;
+  }
+
+  const dataverseErrorMessage = getStringProperty(dataverseError, "message");
+  if (dataverseErrorMessage) {
+    err.dataverseErrorMessage = dataverseErrorMessage;
+  }
+
+  const dataverseInnerError = dataverseError?.innererror;
+  if (dataverseInnerError !== undefined) {
+    err.dataverseInnerError = dataverseInnerError;
+  }
+
+  if (responseData !== undefined) {
+    err.responseData = responseData;
+  }
+
+  const requestId = getHeaderValue(response?.headers, [
+    "x-ms-request-id",
+    "req_id",
+    "request-id",
+    "x-ms-correlation-request-id",
+  ]);
+  if (requestId) {
+    err.requestId = requestId;
+  }
+
+  if (config) {
+    const method = getStringProperty(config, "method")?.toUpperCase();
+    const url = getStringProperty(config, "url");
+    const baseURL = getStringProperty(config, "baseURL");
+    const payload = parseAxiosPayload(config.data);
+
+    if (method || url || baseURL || payload !== undefined) {
+      err.request = {};
+
+      if (method) {
+        err.request.method = method;
+      }
+
+      if (url) {
+        err.request.url = url;
+      }
+
+      if (baseURL) {
+        err.request.baseURL = baseURL;
+      }
+
+      if (payload !== undefined) {
+        err.request.payload = payload;
+      }
+    }
+  }
+
+  if (errorRecord?.cause && err.details === undefined) {
+    err.details = String(errorRecord.cause);
+  }
+
+  return err;
 }
 
 function markOverallStatus(state: CustomApiSyncExecutionState): void {
@@ -759,7 +908,7 @@ function buildPlanFromDiff(diff: CustomApiSemanticDiffResult): CustomApiSyncPlan
 function findLocalCustomApi(catalog: CustomApiCatalogModel, uniqueName: string): CustomApiDefinitionModel {
   const api = catalog.customApis.find((item) => item.uniqueName === uniqueName) ?? catalog.customApis[0];
   if (!api) {
-    throw new Error(`Lokale JSON-Datei für '${uniqueName}' enthält keine Custom API.`);
+    throw new Error(`Local JSON file for '${uniqueName}' contains no custom API.`);
   }
   return api;
 }
@@ -772,7 +921,7 @@ function findLocalRequestParameter(
   const api = findLocalCustomApi(catalog, apiUniqueName);
   const item = (api.requestParameters ?? []).find((p) => p.uniqueName === uniqueName);
   if (!item) {
-    throw new Error(`Lokaler Request-Parameter '${uniqueName}' wurde nicht gefunden.`);
+    throw new Error(`Local request parameter '${uniqueName}' not found.`);
   }
   return item;
 }
@@ -785,7 +934,7 @@ function findLocalResponseProperty(
   const api = findLocalCustomApi(catalog, apiUniqueName);
   const item = (api.responseProperties ?? []).find((p) => p.uniqueName === uniqueName);
   if (!item) {
-    throw new Error(`Lokale Response-Property '${uniqueName}' wurde nicht gefunden.`);
+    throw new Error(`Local response property '${uniqueName}' not found.`);
   }
   return item;
 }
@@ -809,11 +958,11 @@ export async function diffCustomApi(
   const remoteApi = remoteCatalog.customApis[0];
 
   if (!localApi) {
-    throw new Error(`Lokale JSON-Datei für '${uniqueName}' enthält keine Custom API.`);
+    throw new Error(`Local JSON file for '${uniqueName}' contains no custom API.`);
   }
 
   if (!remoteApi) {
-    throw new Error(`Remote-Definition für '${uniqueName}' konnte nicht geladen werden.`);
+    throw new Error(`Remote definition for '${uniqueName}' could not be loaded.`);
   }
 
   const customApiDiff = diffSingleObject(
@@ -940,11 +1089,64 @@ export async function checkCustomApiMetadataConsistency(
   }
 }
 
+export async function validateLocalCatalog(
+  uniqueNameArg?: string,
+  context?: RuntimeContext
+): Promise<ValidateCustomApiResult> {
+  const startedAtUtc = new Date().toISOString();
+  const startedAt = Date.now();
+
+  const uniqueName = ensureUniqueName(uniqueNameArg, await getActiveCustomApiUniqueName(context));
+  const outputRoot = await getCustomApiOutputRootPath(context);
+  const filePath = getCustomApiArtifactFilePath(uniqueName, outputRoot);
+
+  const catalog = await loadLocalCustomApiCatalog(uniqueNameArg, context);
+  const { diagnostics, hasBlockingErrors } = validateCustomApiCatalog(catalog);
+
+  const errors = diagnostics.filter((d) => d.severity === "error");
+  const warnings = diagnostics.filter((d) => d.severity === "warning");
+
+  let status: CcdvCommandResult["status"];
+  if (hasBlockingErrors) {
+    status = "validationFailed";
+  } else if (errors.length > 0 || warnings.length > 0) {
+    status = "succeeded";
+  } else {
+    status = "succeeded";
+  }
+
+  const finishedAtUtc = new Date().toISOString();
+  const commandResult: CcdvCommandResult = {
+    schemaVersion: "1.0.0",
+    status,
+    command: "api validate",
+    startedAtUtc,
+    finishedAtUtc,
+    durationMs: Date.now() - startedAt,
+    diagnostics,
+  };
+
+  return { uniqueName, filePath, commandResult };
+}
+
 export async function buildCustomApiSyncPlan(
   uniqueNameArg?: string,
   context?: RuntimeContext
 ): Promise<BuildSyncPlanResult> {
   await ensureCacheFolders(context);
+
+  const localCatalog = await loadLocalCustomApiCatalog(uniqueNameArg, context);
+  const { diagnostics, hasBlockingErrors } = validateCustomApiCatalog(localCatalog);
+
+  if (hasBlockingErrors) {
+    const blocking = diagnostics.filter((d) => d.severity === "error" && d.blocking);
+    const first = blocking[0];
+    const firstSummary = first ? ` First error: [${first.code}] ${first.message}` : "";
+    throw new Error(
+      `Sync plan blocked by ${blocking.length} validation error(s). Run 'api validate' for the full report.${firstSummary}`
+    );
+  }
+
   const diff = await diffCustomApi(uniqueNameArg, context);
   const plan = buildPlanFromDiff(diff);
   const executionState = createExecutionState(plan);
@@ -1040,7 +1242,7 @@ async function executeOperationInternal(
       break;
     default: {
       const exhaustive: never = operation.action;
-      throw new Error(`Nicht unterstützte Action '${String(exhaustive)}'.`);
+      throw new Error(`Unsupported action '${String(exhaustive)}'.`);
     }
   }
 
@@ -1072,12 +1274,12 @@ export async function executeCustomApiSyncOperation(
 
   const operation = plan.operations.find((item) => item.operationId === operationId);
   if (!operation) {
-    throw new Error(`Operation '${operationId}' wurde im Sync-Plan für '${uniqueName}' nicht gefunden.`);
+    throw new Error(`Operation '${operationId}' not found in sync plan for '${uniqueName}'.`);
   }
 
   const operationState = executionState.operations.find((item) => item.operationId === operationId);
   if (!operationState) {
-    throw new Error(`Operation '${operationId}' wurde im Sync-State für '${uniqueName}' nicht gefunden.`);
+    throw new Error(`Operation '${operationId}' not found in sync state for '${uniqueName}'.`);
   }
 
   const startedAtUtc = new Date().toISOString();
@@ -1099,6 +1301,7 @@ export async function executeCustomApiSyncOperation(
     operationState.durationMs = result.durationMs;
     operationState.message = result.message;
     operationState.simulated = result.simulated;
+    delete operationState.error;
 
     markOverallStatus(executionState);
     await writeJsonFile(stateFilePath, executionState);
@@ -1112,6 +1315,7 @@ export async function executeCustomApiSyncOperation(
     };
   } catch (error) {
     const finishedAtUtc = new Date().toISOString();
+    const durationMs = new Date(finishedAtUtc).getTime() - new Date(startedAtUtc).getTime();
     const errorObject = buildErrorObject(error);
 
     const result: CustomApiSyncOperationResult = {
@@ -1122,7 +1326,7 @@ export async function executeCustomApiSyncOperation(
       status: "failed",
       startedAtUtc,
       finishedAtUtc,
-      durationMs: 0,
+      durationMs,
       message: `Execution failed for ${operation.action}.`,
       simulated: simulate,
       error: errorObject,
@@ -1130,7 +1334,7 @@ export async function executeCustomApiSyncOperation(
 
     operationState.status = "failed";
     operationState.finishedAtUtc = finishedAtUtc;
-    operationState.durationMs = 0;
+    operationState.durationMs = durationMs;
     operationState.message = result.message;
     operationState.simulated = simulate;
     operationState.error = errorObject;

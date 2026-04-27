@@ -11,7 +11,7 @@ export async function runConnectCommand(
     return;
   }
 
-  console.log(`Verbunden und gecacht: ${result.environmentUrl}`);
-  console.log(`Auth-Modus: ${result.authMode}`);
-  console.log(`Cache-Datei: ${result.environmentCacheFilePath}`);
+  console.log(`Connected and cached: ${result.environmentUrl}`);
+  console.log(`Auth mode: ${result.authMode}`);
+  console.log(`Cache file: ${result.environmentCacheFilePath}`);
 }

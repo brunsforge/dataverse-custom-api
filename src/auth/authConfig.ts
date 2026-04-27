@@ -20,14 +20,14 @@ export async function loadAuthConfig(
 
   if (!(await fileExists(authPath))) {
     throw new Error(
-      `auth.json wurde nicht gefunden. Erwarteter Pfad: '${authPath}'.`
+      `auth.json not found. Expected path: '${authPath}'.`
     );
   }
 
   const config = await readJsonFile<AuthConfig>(authPath);
 
   if (!config || typeof config !== "object") {
-    throw new Error("auth.json konnte nicht als gültiges JSON-Objekt gelesen werden.");
+    throw new Error("auth.json could not be read as a valid JSON object.");
   }
 
   const allowedAuthModes: AuthMode[] = [
@@ -38,7 +38,7 @@ export async function loadAuthConfig(
 
   if (config.authMode && !allowedAuthModes.includes(config.authMode)) {
     throw new Error(
-      `auth.json enthält einen ungültigen authMode '${config.authMode}'. Erlaubt sind: ${allowedAuthModes.join(", ")}.`
+      `auth.json contains an invalid authMode '${config.authMode}'. Allowed values: ${allowedAuthModes.join(", ")}.`
     );
   }
 

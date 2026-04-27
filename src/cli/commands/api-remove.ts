@@ -11,8 +11,8 @@ export async function runApiRemoveCommand(
     return;
   }
 
-  console.log(`API-Artefakt entfernt: ${result.uniqueName}`);
-  console.log(`Datei: ${result.filePath}`);
-  console.log(`Datei gelöscht: ${result.fileDeleted ? "Ja" : "Nein"}`);
-  console.log(`Aktive API gelöscht: ${result.activeApiCleared ? "Ja" : "Nein"}`);
+  console.log(`API artifact removed: ${result.uniqueName}`);
+  console.log(`File: ${result.filePath}`);
+  console.log(`File deleted: ${result.fileDeleted ? "yes" : "no"}`);
+  console.log(`Active API cleared: ${result.activeApiCleared ? "yes" : "no"}`);
 }

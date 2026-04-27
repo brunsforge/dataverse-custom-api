@@ -17,6 +17,7 @@ import { runApiPlanCommand } from "./commands/api-plan.js";
 import { runApiExecuteOperationCommand } from "./commands/api-exec-op.js";
 import { runApiExecutePlanCommand } from "./commands/api-exec-plan.js";
 import { runApiCheckMetadataCommand } from "./commands/api-check-metadata.js";
+import { runApiValidateCommand } from "./commands/api-validate.js";
 import { formatCliError } from "../utils/errorHelpers.js";
 
 const require = createRequire(import.meta.url);
@@ -39,123 +40,123 @@ program
 
 program
   .command("connect")
-  .description("Verbindet das CLI mit einem Dataverse Environment und cached die Umgebung")
-  .requiredOption("-u, --url <environmentUrl>", "Dataverse Environment URL")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("Connect the CLI to a Dataverse environment and cache it")
+  .requiredOption("-u, --url <environmentUrl>", "Dataverse environment URL")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runConnectCommand(options.url, options.json ?? false);
   });
 
 const environmentCommand = program
   .command("env")
-  .description("Verwaltet gespeicherte Dataverse Environments");
+  .description("Manage saved Dataverse environments");
 
 environmentCommand
   .command("list")
-  .description("Listet gespeicherte Environments")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("List saved environments")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runEnvironmentListCommand(options.json ?? false);
   });
 
 environmentCommand
   .command("current")
-  .description("Zeigt das aktuell aktive Environment")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("Show the currently active environment")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runEnvironmentCurrentCommand(options.json ?? false);
   });
 
 environmentCommand
   .command("use")
-  .description("Setzt ein gespeichertes Environment als aktiv")
-  .requiredOption("-i, --id <environmentId>", "ID des gespeicherten Environments")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("Set a saved environment as active")
+  .requiredOption("-i, --id <environmentId>", "ID of the saved environment")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runEnvironmentUseCommand(options.id, options.json ?? false);
   });
 
 environmentCommand
   .command("remove")
-  .description("Entfernt ein gespeichertes Environment")
-  .requiredOption("-i, --id <environmentId>", "ID des gespeicherten Environments")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("Remove a saved environment")
+  .requiredOption("-i, --id <environmentId>", "ID of the saved environment")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runEnvironmentRemoveCommand(options.id, options.json ?? false);
   });
 
 const apiCommand = program
   .command("api")
-  .description("Verwaltet Custom APIs im aktiven Environment");
+  .description("Manage custom APIs in the active environment");
 
 apiCommand
   .command("list")
-  .description("Listet Custom APIs aus dem aktiven Environment")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("List custom APIs from the active environment")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runApiListCommand(options.json ?? false);
   });
 
 apiCommand
   .command("current")
-  .description("Zeigt die aktuell aktive Custom API")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("Show the currently active custom API")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runApiCurrentCommand(options.json ?? false);
   });
 
 apiCommand
   .command("use")
-  .description("Setzt eine Custom API als aktive API")
-  .requiredOption("-n, --name <uniqueName>", "Unique Name der Custom API")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("Set a custom API as the active API")
+  .requiredOption("-n, --name <uniqueName>", "Unique name of the custom API")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runApiUseCommand(options.name, options.json ?? false);
   });
 
 apiCommand
   .command("remove")
-  .description("Entfernt das lokale JSON-Artefakt einer Custom API und löscht ggf. die aktive API-Auswahl")
-  .option("-n, --name <uniqueName>", "Unique Name der Custom API")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("Remove the local JSON artifact of a custom API and optionally clear the active API selection")
+  .option("-n, --name <uniqueName>", "Unique name of the custom API")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runApiRemoveCommand(options.name, options.json ?? false);
   });
 
 apiCommand
   .command("export")
-  .description("Exportiert eine Custom API als lokales Bearbeitungsartefakt")
-  .option("-n, --name <uniqueName>", "Unique Name der Custom API")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("Export a custom API as a local editing artifact")
+  .option("-n, --name <uniqueName>", "Unique name of the custom API")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runApiExportCommand(options.name, options.json ?? false);
   });
 
 apiCommand
   .command("diff")
-  .description("Vergleicht lokale JSON-Definition mit Dataverse")
-  .option("-n, --name <uniqueName>", "Unique Name der Custom API")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("Compare local JSON definition with Dataverse")
+  .option("-n, --name <uniqueName>", "Unique name of the custom API")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runApiDiffCommand(options.name, options.json ?? false);
   });
 
 apiCommand
   .command("plan")
-  .description("Erzeugt einen Sync-Plan aus dem semantischen Diff")
-  .option("-n, --name <uniqueName>", "Unique Name der Custom API")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("Generate a sync plan from the semantic diff")
+  .option("-n, --name <uniqueName>", "Unique name of the custom API")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runApiPlanCommand(options.name, options.json ?? false);
   });
 
 apiCommand
   .command("exec-op")
-  .description("Führt genau eine Operation aus einem Sync-Plan aus")
-  .requiredOption("-o, --operation-id <operationId>", "Operation ID aus dem Sync-Plan")
-  .option("-n, --name <uniqueName>", "Unique Name der Custom API")
-  .option("--simulate", "Simulation statt Live-Ausführung")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("Execute exactly one operation from a sync plan")
+  .requiredOption("-o, --operation-id <operationId>", "Operation ID from the sync plan")
+  .option("-n, --name <uniqueName>", "Unique name of the custom API")
+  .option("--simulate", "Simulate instead of live execution")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runApiExecuteOperationCommand(
       options.name,
@@ -167,10 +168,10 @@ apiCommand
 
 apiCommand
   .command("exec-plan")
-  .description("Führt einen kompletten Sync-Plan sequenziell aus")
-  .option("-n, --name <uniqueName>", "Unique Name der Custom API")
-  .option("--simulate", "Simulation statt Live-Ausführung")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("Execute a complete sync plan sequentially")
+  .option("-n, --name <uniqueName>", "Unique name of the custom API")
+  .option("--simulate", "Simulate instead of live execution")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runApiExecutePlanCommand(
       options.name,
@@ -181,11 +182,20 @@ apiCommand
 
 apiCommand
   .command("check-metadata")
-  .description("Prüft, ob lokale Definition und aktuell gelieferte Dataverse-Metadaten auseinanderlaufen")
-  .option("-n, --name <uniqueName>", "Unique Name der Custom API")
-  .option("--json", "Maschinenlesbare JSON-Ausgabe")
+  .description("Check whether local definition and current Dataverse metadata are in sync")
+  .option("-n, --name <uniqueName>", "Unique name of the custom API")
+  .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runApiCheckMetadataCommand(options.name, options.json ?? false);
+  });
+
+apiCommand
+  .command("validate")
+  .description("Validate the local custom API definition and report diagnostics")
+  .option("-n, --name <uniqueName>", "Unique name of the custom API")
+  .option("--json", "Machine-readable JSON output (CcdvCommandResult envelope)")
+  .action(async (options) => {
+    await runApiValidateCommand(options.name, options.json ?? false);
   });
 
 program.parseAsync(process.argv).catch((error: unknown) => {

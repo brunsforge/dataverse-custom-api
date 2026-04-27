@@ -11,7 +11,7 @@ export async function runApiCheckMetadataCommand(
     return;
   }
 
-  console.log(`Metadata-Check für: ${result.uniqueName}`);
+  console.log(`Metadata check for: ${result.uniqueName}`);
   console.log(`Status: ${result.status}`);
   console.log(result.message);
 
@@ -19,7 +19,7 @@ export async function runApiCheckMetadataCommand(
     console.log(
       `- ${mismatch.objectType}:${mismatch.uniqueName} | ${mismatch.field} | local=${JSON.stringify(
         mismatch.localValue
-      )} | remote=${JSON.stringify(mismatch.remoteValue)} | recreate=${mismatch.requiresRecreate ? "Ja" : "Nein"}`
+      )} | remote=${JSON.stringify(mismatch.remoteValue)} | recreate=${mismatch.requiresRecreate ? "yes" : "no"}`
     );
   }
 }

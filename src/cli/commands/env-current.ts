@@ -10,8 +10,8 @@ export async function runEnvironmentCurrentCommand(
     return;
   }
 
-  console.log(`Aktives Environment: ${result.id}`);
-  console.log(`Anzeigename: ${result.displayName}`);
+  console.log(`Active environment: ${result.id}`);
+  console.log(`Display name: ${result.displayName}`);
   console.log(`URL: ${result.environmentUrl}`);
-  console.log(`Auth-Modus: ${result.authMode}`);
+  console.log(`Auth mode: ${result.authMode}`);
 }

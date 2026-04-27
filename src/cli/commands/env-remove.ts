@@ -11,13 +11,13 @@ export async function runEnvironmentRemoveCommand(
     return;
   }
 
-  console.log(`Environment entfernt: ${result.removedEnvironmentId}`);
-  console.log(`Anzeigename: ${result.removedDisplayName}`);
-  console.log(`Store-Datei: ${result.environmentStoreFilePath}`);
+  console.log(`Environment removed: ${result.removedEnvironmentId}`);
+  console.log(`Display name: ${result.removedDisplayName}`);
+  console.log(`Store file: ${result.environmentStoreFilePath}`);
 
   if (result.activeEnvironmentId) {
-    console.log(`Neues aktives Environment: ${result.activeEnvironmentId}`);
+    console.log(`New active environment: ${result.activeEnvironmentId}`);
   } else {
-    console.log("Es ist kein aktives Environment mehr gesetzt.");
+    console.log("No active environment set.");
   }
 }

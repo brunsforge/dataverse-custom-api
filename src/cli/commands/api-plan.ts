@@ -11,11 +11,11 @@ export async function runApiPlanCommand(
     return;
   }
 
-  console.log(`Plan erzeugt: ${result.filePath}`);
-  console.log(`State-Datei: ${result.stateFilePath}`);
-  console.log(`Operationen: ${result.plan.operations.length}`);
+  console.log(`Plan created: ${result.filePath}`);
+  console.log(`State file: ${result.stateFilePath}`);
+  console.log(`Operations: ${result.plan.operations.length}`);
   console.log(
-    `Destruktive Änderungen erforderlich: ${result.plan.requiresDestructiveChanges ? "Ja" : "Nein"}`
+    `Destructive changes required: ${result.plan.requiresDestructiveChanges ? "yes" : "no"}`
   );
 
   for (const operation of result.plan.operations) {

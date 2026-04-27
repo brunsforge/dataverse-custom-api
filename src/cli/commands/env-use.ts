@@ -11,7 +11,7 @@ export async function runEnvironmentUseCommand(
     return;
   }
 
-  console.log(`Aktives Environment gesetzt: ${result.environmentId}`);
-  console.log(`Anzeigename: ${result.displayName}`);
-  console.log(`Store-Datei: ${result.environmentStoreFilePath}`);
+  console.log(`Active environment set: ${result.environmentId}`);
+  console.log(`Display name: ${result.displayName}`);
+  console.log(`Store file: ${result.environmentStoreFilePath}`);
 }
