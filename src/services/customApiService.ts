@@ -309,7 +309,6 @@ const REQUEST_PARAMETER_RECREATE_FIELDS: Array<keyof CustomApiParameterModel> = 
 
 const REQUEST_PARAMETER_COMPARE_FIELDS: Array<keyof CustomApiParameterModel> = [
   "uniqueName",
-  "name",
   "displayName",
   "description",
   "type",
@@ -325,7 +324,6 @@ const RESPONSE_PROPERTY_RECREATE_FIELDS: Array<keyof CustomApiResponsePropertyMo
 
 const RESPONSE_PROPERTY_COMPARE_FIELDS: Array<keyof CustomApiResponsePropertyModel> = [
   "uniqueName",
-  "name",
   "displayName",
   "description",
   "type",

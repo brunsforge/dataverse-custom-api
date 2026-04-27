@@ -27,6 +27,10 @@ function supportsLogicalEntityName(type: string): boolean {
   return type === "Entity" || type === "EntityReference";
 }
 
+function getComponentName(customApiUniqueName: string, childUniqueName: string): string {
+  return `${customApiUniqueName}.${childUniqueName}`;
+}
+
 function normalizeOptionalString(value: string | undefined): string | undefined {
   if (value === undefined || value === null) {
     return undefined;
@@ -71,10 +75,13 @@ function normalizeRequestParameter(
     delete normalized.logicalEntityName;
   }
 
+  if (normalized.uniqueName && parentUniqueName) {
+    normalized.name = getComponentName(parentUniqueName, normalized.uniqueName);
+  }
+
   const rec = normalized as unknown as Record<string, unknown>;
   applyOptionalString(rec, "displayName", normalizeOptionalString(normalized.displayName));
   applyOptionalString(rec, "description", normalizeOptionalString(normalized.description));
-  applyOptionalString(rec, "name", normalizeOptionalString(normalized.name));
 
   return { param: normalized, diagnostics: diags };
 }
@@ -107,10 +114,13 @@ function normalizeResponseProperty(
     delete normalized.logicalEntityName;
   }
 
+  if (normalized.uniqueName && parentUniqueName) {
+    normalized.name = getComponentName(parentUniqueName, normalized.uniqueName);
+  }
+
   const rec = normalized as unknown as Record<string, unknown>;
   applyOptionalString(rec, "displayName", normalizeOptionalString(normalized.displayName));
   applyOptionalString(rec, "description", normalizeOptionalString(normalized.description));
-  applyOptionalString(rec, "name", normalizeOptionalString(normalized.name));
 
   return { prop: normalized, diagnostics: diags };
 }

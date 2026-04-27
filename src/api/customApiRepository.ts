@@ -611,7 +611,7 @@ export class CustomApiRepository {
     const http = await this.client.createHttpClient();
     await http.patch(
       `/customapirequestparameters(${existing.customapirequestparameterid})`,
-      buildRequestParameterPayload(parameter, undefined, changedFields)
+      buildRequestParameterPayload(parameter, undefined, changedFields, customApiUniqueName)
     );
   }
 
@@ -672,7 +672,7 @@ export class CustomApiRepository {
     const http = await this.client.createHttpClient();
     await http.patch(
       `/customapiresponseproperties(${existing.customapiresponsepropertyid})`,
-      buildResponsePropertyPayload(property, undefined, changedFields)
+      buildResponsePropertyPayload(property, undefined, changedFields, customApiUniqueName)
     );
   }
 

@@ -478,16 +478,18 @@ export function validateRequestParameter(
     });
   }
 
-  // name format recommendation
-  if (param.name && param.uniqueName && parentUniqueName) {
+  // name format: must be {customApiUniqueName}.{uniqueName}
+  if (param.uniqueName && parentUniqueName) {
     const expected = `${parentUniqueName}.${param.uniqueName}`;
-    if (param.name !== expected) {
+    if (!param.name || param.name !== expected) {
       diags.push({
         id: makeDiagId(),
         code: CCDV_CODES.CCDV_PARAM_NAME_RECOMMENDED_FORMAT,
         severity: "warning",
         category: "validation",
-        message: `Request parameter '${pn}' name '${param.name}' does not follow the recommended format '${expected}'.`,
+        message: param.name
+          ? `Request parameter '${pn}' name '${param.name}' does not match the required format '${expected}'.`
+          : `Request parameter '${pn}' is missing the name field. Expected: '${expected}'.`,
         entityKind: "requestParameter",
         parentUniqueName,
         uniqueName: pn,
@@ -611,16 +613,18 @@ export function validateResponseProperty(
     }
   }
 
-  // name format recommendation
-  if (prop.name && prop.uniqueName && parentUniqueName) {
+  // name format: must be {customApiUniqueName}.{uniqueName}
+  if (prop.uniqueName && parentUniqueName) {
     const expected = `${parentUniqueName}.${prop.uniqueName}`;
-    if (prop.name !== expected) {
+    if (!prop.name || prop.name !== expected) {
       diags.push({
         id: makeDiagId(),
         code: CCDV_CODES.CCDV_RESPONSE_NAME_RECOMMENDED_FORMAT,
         severity: "warning",
         category: "validation",
-        message: `Response property '${pn}' name '${prop.name}' does not follow the recommended format '${expected}'.`,
+        message: prop.name
+          ? `Response property '${pn}' name '${prop.name}' does not match the required format '${expected}'.`
+          : `Response property '${pn}' is missing the name field. Expected: '${expected}'.`,
         entityKind: "responseProperty",
         parentUniqueName,
         uniqueName: pn,
