@@ -26,6 +26,7 @@ import type {
   SelectCustomApiResult,
   ValidateCustomApiOptions,
   ValidateCustomApiResult,
+  ValidatePrivilegesResult,
 } from "../models/public-types.js";
 import type { RuntimeContext } from "../models/runtime-context.js";
 import {
@@ -44,6 +45,7 @@ import {
   removeCustomApi,
   setActiveCustomApi,
   validateLocalCatalog,
+  validatePrivileges,
   type CurrentCustomApiResult,
   type RemoveCustomApiResult,
 } from "./customApiService.js";
@@ -74,6 +76,7 @@ export interface CoreFacade {
   checkCustomApiMetadataConsistency(
     options?: CheckCustomApiMetadataOptions
   ): Promise<CheckCustomApiMetadataResult>;
+  validatePrivileges(): Promise<ValidatePrivilegesResult>;
 }
 
 export function createCoreFacade(context?: RuntimeContext): CoreFacade {
@@ -155,6 +158,10 @@ export function createCoreFacade(context?: RuntimeContext): CoreFacade {
       options?: CheckCustomApiMetadataOptions
     ): Promise<CheckCustomApiMetadataResult> {
       return checkCustomApiMetadataConsistency(options?.uniqueName, context);
+    },
+
+    async validatePrivileges(): Promise<ValidatePrivilegesResult> {
+      return validatePrivileges(context);
     },
   };
 }

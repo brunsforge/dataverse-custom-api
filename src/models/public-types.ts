@@ -120,3 +120,19 @@ export interface ValidateCustomApiResult {
   filePath: string;
   commandResult: CcdvCommandResult;
 }
+
+export interface PrivilegeCheckItem {
+  feature: string;
+  privilegeName: string;
+  privilegeId?: string;
+  available: boolean;
+  hint?: string;
+}
+
+export interface ValidatePrivilegesResult {
+  environmentUrl: string;
+  userId: string;
+  userName: string;
+  privileges: PrivilegeCheckItem[];
+  allAvailable: boolean;
+}

@@ -26,7 +26,9 @@ import type { RuntimeContext } from "../models/runtime-context.js";
 import type {
   CheckCustomApiMetadataResult,
   MetadataMismatchItem,
+  PrivilegeCheckItem,
   ValidateCustomApiResult,
+  ValidatePrivilegesResult,
 } from "../models/public-types.js";
 import { validateCustomApiCatalog } from "../validation/customApiValidator.js";
 import { loadAuthConfig } from "../auth/authConfig.js";
@@ -1373,6 +1375,110 @@ export async function executeCustomApiSyncOperation(
       executionState,
     };
   }
+}
+
+// ── Privilege validation ───────────────────────────────────────────────────────
+
+interface WhoAmIResponse {
+  UserId: string;
+}
+
+interface UserPrivilege {
+  PrivilegeId: string;
+}
+
+interface RetrieveUserPrivilegesResponse {
+  RolePrivileges: UserPrivilege[];
+}
+
+interface PrivilegeRow {
+  privilegeid: string;
+  name: string;
+}
+
+const PRIVILEGE_CHECKS: Array<{
+  feature: string;
+  privilegeName: string;
+  privilegeId?: string;
+  hint?: string;
+}> = [
+  { feature: "Custom API lesen",      privilegeName: "prvReadCustomAPI" },
+  { feature: "Custom API anlegen",    privilegeName: "prvCreateCustomAPI" },
+  { feature: "Custom API bearbeiten", privilegeName: "prvWriteCustomAPI" },
+  { feature: "Custom API löschen",    privilegeName: "prvDeleteCustomAPI" },
+  {
+    feature: "PluginType-Binding",
+    privilegeName: "prvAppendToPluginType",
+    privilegeId: "574c053e-6488-4bfb-832a-cbc47aff8b32",
+    hint:
+      "Custom APIs werden ohne Plugin-Verknüpfung erstellt. " +
+      "Vergib 'prvAppendToPluginType' (AppendTo, plugintype, Org-Ebene) an die Sicherheitsrolle.",
+  },
+  {
+    feature: "Plugin Steps anlegen",
+    privilegeName: "prvCreateSdkMessageProcessingStep",
+    hint:
+      "Schrittregistrierungen können nicht automatisch angelegt werden. " +
+      "Vergib 'prvCreateSdkMessageProcessingStep' (Create, sdkmessageprocessingstep, Org-Ebene).",
+  },
+];
+
+export async function validatePrivileges(
+  context?: RuntimeContext
+): Promise<ValidatePrivilegesResult> {
+  const env = await getCurrentEnvironment(context);
+  const client = new DataverseClient(env.environmentUrl, context);
+  const http = await client.createHttpClient();
+
+  const whoAmI = (await http.get<WhoAmIResponse>("/WhoAmI()")).data;
+  const userId = whoAmI.UserId;
+
+  const privilegesResponse = await http.get<RetrieveUserPrivilegesResponse>(
+    `/systemusers(${userId})/Microsoft.Dynamics.CRM.RetrieveUserPrivileges()`
+  );
+  const userPrivilegeIds = new Set(
+    (privilegesResponse.data.RolePrivileges ?? []).map((p) => p.PrivilegeId.toLowerCase())
+  );
+
+  const resolvedIds = new Map<string, string>();
+  for (const p of PRIVILEGE_CHECKS.filter((p) => !p.privilegeId)) {
+    try {
+      const res = await http.get<{ value: PrivilegeRow[] }>(
+        `/privileges?$select=privilegeid,name&$filter=name eq '${p.privilegeName}'`
+      );
+      const row = res.data.value[0];
+      if (row) resolvedIds.set(p.privilegeName, row.privilegeid);
+    } catch {
+      // leave unresolved — will show as unavailable
+    }
+  }
+
+  let userName = userId;
+  try {
+    const userInfo = await http.get<{ fullname?: string }>(
+      `/systemusers(${userId})?$select=fullname`
+    );
+    userName = userInfo.data.fullname ?? userId;
+  } catch {
+    // fallback to userId
+  }
+
+  const privileges: PrivilegeCheckItem[] = PRIVILEGE_CHECKS.map((p) => {
+    const id = p.privilegeId ?? resolvedIds.get(p.privilegeName);
+    const available = id !== undefined && userPrivilegeIds.has(id.toLowerCase());
+    const item: PrivilegeCheckItem = { feature: p.feature, privilegeName: p.privilegeName, available };
+    if (id !== undefined) item.privilegeId = id;
+    if (p.hint) item.hint = p.hint;
+    return item;
+  });
+
+  return {
+    environmentUrl: env.environmentUrl,
+    userId,
+    userName,
+    privileges,
+    allAvailable: privileges.every((p) => p.available),
+  };
 }
 
 export async function executeCustomApiSyncPlan(
