@@ -30,37 +30,37 @@ interface PrivilegeCheck {
 }
 
 const KNOWN_PRIVILEGES: Array<{ feature: string; privilegeName: string; privilegeId?: string }> = [
-  { feature: "Custom API lesen", privilegeName: "prvReadCustomAPI" },
-  { feature: "Custom API anlegen", privilegeName: "prvCreateCustomAPI" },
-  { feature: "Custom API bearbeiten", privilegeName: "prvWriteCustomAPI" },
-  { feature: "Custom API löschen", privilegeName: "prvDeleteCustomAPI" },
+  { feature: "Read Custom API",    privilegeName: "prvReadCustomAPI" },
+  { feature: "Create Custom API",  privilegeName: "prvCreateCustomAPI" },
+  { feature: "Update Custom API",  privilegeName: "prvWriteCustomAPI" },
+  { feature: "Delete Custom API",  privilegeName: "prvDeleteCustomAPI" },
   {
-    feature: "PluginType-Binding",
+    feature: "PluginType Binding",
     privilegeName: "prvAppendToPluginType",
     privilegeId: "574c053e-6488-4bfb-832a-cbc47aff8b32",
   },
-  { feature: "Plugin Steps anlegen", privilegeName: "prvCreateSdkMessageProcessingStep" },
+  { feature: "Create Plugin Steps", privilegeName: "prvCreateSdkMessageProcessingStep" },
 ];
 
 const PRIVILEGE_HINTS: Record<string, string> = {
   prvAppendToPluginType:
-    "Custom APIs werden ohne Plugin-Verknüpfung erstellt.\n" +
-    "  Vergib 'prvAppendToPluginType' (AppendTo, plugintype, Org-Ebene) an die Sicherheitsrolle.",
+    "Custom APIs will be created without a plugin type link.\n" +
+    "  Grant 'prvAppendToPluginType' (AppendTo, plugintype, organisation scope) to the app user's security role.",
   prvCreateSdkMessageProcessingStep:
-    "Schrittregistrierungen können nicht automatisch angelegt werden.\n" +
-    "  Vergib 'prvCreateSdkMessageProcessingStep' (Create, sdkmessageprocessingstep, Org-Ebene).",
+    "Plugin step registrations cannot be created automatically.\n" +
+    "  Grant 'prvCreateSdkMessageProcessingStep' (Create, sdkmessageprocessingstep, organisation scope) to the app user's security role.",
   prvReadCustomAPI:
-    "Custom APIs können nicht gelesen werden.\n" +
-    "  Vergib 'prvReadCustomAPI' (Read, customapi, Org-Ebene) an die Sicherheitsrolle.",
+    "Custom APIs cannot be read.\n" +
+    "  Grant 'prvReadCustomAPI' (Read, customapi, organisation scope) to the app user's security role.",
   prvCreateCustomAPI:
-    "Custom APIs können nicht angelegt werden.\n" +
-    "  Vergib 'prvCreateCustomAPI' (Create, customapi, Org-Ebene) an die Sicherheitsrolle.",
+    "Custom APIs cannot be created.\n" +
+    "  Grant 'prvCreateCustomAPI' (Create, customapi, organisation scope) to the app user's security role.",
   prvWriteCustomAPI:
-    "Custom APIs können nicht bearbeitet werden.\n" +
-    "  Vergib 'prvWriteCustomAPI' (Write, customapi, Org-Ebene) an die Sicherheitsrolle.",
+    "Custom APIs cannot be updated.\n" +
+    "  Grant 'prvWriteCustomAPI' (Write, customapi, organisation scope) to the app user's security role.",
   prvDeleteCustomAPI:
-    "Custom APIs können nicht gelöscht werden.\n" +
-    "  Vergib 'prvDeleteCustomAPI' (Delete, customapi, Org-Ebene) an die Sicherheitsrolle.",
+    "Custom APIs cannot be deleted.\n" +
+    "  Grant 'prvDeleteCustomAPI' (Delete, customapi, organisation scope) to the app user's security role.",
 };
 
 export async function runValidatePrivilegesCommand(options: {
@@ -137,8 +137,8 @@ export async function runValidatePrivilegesCommand(options: {
   }
 
   const envHost = env.environmentUrl.replace(/^https?:\/\//, "");
-  console.log(`\nPrivilege-Validierung für: ${envHost}`);
-  console.log(`App-User: ${userName} (${userId})\n`);
+  console.log(`\nPrivilege validation for: ${envHost}`);
+  console.log(`App user: ${userName} (${userId})\n`);
 
   const featureCol = 33;
   const privilegeCol = 36;
@@ -150,7 +150,7 @@ export async function runValidatePrivilegesCommand(options: {
   console.log("─".repeat(header.length + 6));
 
   for (const check of checks) {
-    const status = check.available ? "✓ Verfügbar" : "✗ Fehlt";
+    const status = check.available ? "✓ Available" : "✗ Missing";
     console.log(
       check.feature.padEnd(featureCol) +
         check.privilegeName.padEnd(privilegeCol) +
@@ -160,7 +160,7 @@ export async function runValidatePrivilegesCommand(options: {
 
   const missing = checks.filter((c) => !c.available);
   if (missing.length > 0) {
-    console.log("\nHINWEISE:");
+    console.log("\nHINTS:");
     for (const m of missing) {
       const hint = PRIVILEGE_HINTS[m.privilegeName];
       if (hint) {
@@ -168,11 +168,11 @@ export async function runValidatePrivilegesCommand(options: {
       }
     }
   } else {
-    console.log("\nAlle geprüften Privileges sind verfügbar.");
+    console.log("\nAll checked privileges are available.");
   }
 
   if (options.verbose) {
-    console.log(`\nAlle User-Privileges (${userPrivileges.length} gesamt):`);
+    console.log(`\nAll user privileges (${userPrivileges.length} total):`);
     for (const p of userPrivileges) {
       console.log(`  ${p.PrivilegeId}  depth=${p.Depth}`);
     }

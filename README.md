@@ -438,23 +438,23 @@ dvc api validate-privileges --json
 **Output:**
 
 ```text
-Privilege-Validierung für: orgf707a816.crm16.dynamics.com
-App-User: CCDV Custom API CLI - AppOnly (6dcbb78d-...)
+Privilege validation for: orgf707a816.crm16.dynamics.com
+App user: DVC Custom API CLI - AppOnly (6dcbb78d-...)
 
 FEATURE                          PRIVILEGE                           STATUS
 ──────────────────────────────────────────────────────────────────────────────
-Custom API lesen                 prvReadCustomAPI                    ✓ Verfügbar
-Custom API anlegen               prvCreateCustomAPI                  ✓ Verfügbar
-Custom API bearbeiten            prvWriteCustomAPI                   ✓ Verfügbar
-Custom API löschen               prvDeleteCustomAPI                  ✓ Verfügbar
-PluginType-Binding               prvAppendToPluginType               ✗ Fehlt
-Plugin Steps anlegen             prvCreateSdkMessageProcessingStep   ✗ Fehlt
+Read Custom API                  prvReadCustomAPI                    ✓ Available
+Create Custom API                prvCreateCustomAPI                  ✓ Available
+Update Custom API                prvWriteCustomAPI                   ✓ Available
+Delete Custom API                prvDeleteCustomAPI                  ✓ Available
+PluginType Binding               prvAppendToPluginType               ✗ Missing
+Create Plugin Steps              prvCreateSdkMessageProcessingStep   ✗ Missing
 
-HINWEISE:
-• PluginType-Binding fehlt: Custom APIs werden ohne Plugin-Verknüpfung erstellt.
-  Vergib 'prvAppendToPluginType' (AppendTo, plugintype, Org-Ebene) an die Sicherheitsrolle.
-• Plugin Steps fehlen: Schrittregistrierungen können nicht automatisch angelegt werden.
-  Vergib 'prvCreateSdkMessageProcessingStep' (Create, sdkmessageprocessingstep, Org-Ebene).
+HINTS:
+• Custom APIs will be created without a plugin type link.
+  Grant 'prvAppendToPluginType' (AppendTo, plugintype, organisation scope) to the app user's security role.
+• Plugin step registrations cannot be created automatically.
+  Grant 'prvCreateSdkMessageProcessingStep' (Create, sdkmessageprocessingstep, organisation scope) to the app user's security role.
 ```
 
 **Checked privileges:**
@@ -883,23 +883,23 @@ dvc api validate-privileges --json
 **Ausgabe:**
 
 ```text
-Privilege-Validierung für: orgf707a816.crm16.dynamics.com
-App-User: CCDV Custom API CLI - AppOnly (6dcbb78d-...)
+Privilege validation for: orgf707a816.crm16.dynamics.com
+App user: DVC Custom API CLI - AppOnly (6dcbb78d-...)
 
 FEATURE                          PRIVILEGE                           STATUS
 ──────────────────────────────────────────────────────────────────────────────
-Custom API lesen                 prvReadCustomAPI                    ✓ Verfügbar
-Custom API anlegen               prvCreateCustomAPI                  ✓ Verfügbar
-Custom API bearbeiten            prvWriteCustomAPI                   ✓ Verfügbar
-Custom API löschen               prvDeleteCustomAPI                  ✓ Verfügbar
-PluginType-Binding               prvAppendToPluginType               ✗ Fehlt
-Plugin Steps anlegen             prvCreateSdkMessageProcessingStep   ✗ Fehlt
+Read Custom API                  prvReadCustomAPI                    ✓ Available
+Create Custom API                prvCreateCustomAPI                  ✓ Available
+Update Custom API                prvWriteCustomAPI                   ✓ Available
+Delete Custom API                prvDeleteCustomAPI                  ✓ Available
+PluginType Binding               prvAppendToPluginType               ✗ Missing
+Create Plugin Steps              prvCreateSdkMessageProcessingStep   ✗ Missing
 
-HINWEISE:
-• PluginType-Binding fehlt: Custom APIs werden ohne Plugin-Verknüpfung erstellt.
-  Vergib 'prvAppendToPluginType' (AppendTo, plugintype, Org-Ebene) an die Sicherheitsrolle.
-• Plugin Steps fehlen: Schrittregistrierungen können nicht automatisch angelegt werden.
-  Vergib 'prvCreateSdkMessageProcessingStep' (Create, sdkmessageprocessingstep, Org-Ebene).
+HINTS:
+• Custom APIs will be created without a plugin type link.
+  Grant 'prvAppendToPluginType' (AppendTo, plugintype, organisation scope) to the app user's security role.
+• Plugin step registrations cannot be created automatically.
+  Grant 'prvCreateSdkMessageProcessingStep' (Create, sdkmessageprocessingstep, organisation scope) to the app user's security role.
 ```
 
 **Geprüfte Privileges:**
