@@ -390,7 +390,7 @@ function buildCustomApiPayload(
   }
 
   if ((include("pluginTypeId") || include("pluginTypeName")) && definition.pluginTypeId) {
-    payload["plugintypeid@odata.bind"] = `/plugintypes(${definition.pluginTypeId})`;
+    payload["PluginTypeId@odata.bind"] = `/plugintypes(${definition.pluginTypeId})`;
   }
 
   return payload;

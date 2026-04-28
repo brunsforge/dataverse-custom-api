@@ -768,7 +768,17 @@ function buildPlanFromDiff(diff: CustomApiSemanticDiffResult): CustomApiSyncPlan
     sequence += 10;
   };
 
-  if (diff.customApi.kind === "recreate") {
+  if (diff.customApi.kind === "create") {
+    pushOperation("createCustomApi", "customApi", diff.uniqueName, "new", false);
+
+    for (const request of diff.requestParameters) {
+      pushOperation("createRequestParameter", "requestParameter", request.uniqueName, "new", false);
+    }
+
+    for (const response of diff.responseProperties) {
+      pushOperation("createResponseProperty", "responseProperty", response.uniqueName, "new", false);
+    }
+  } else if (diff.customApi.kind === "recreate") {
     for (const response of diff.responseProperties) {
       if (response.remote) {
         pushOperation("deleteResponseProperty", "responseProperty", response.uniqueName, "parentRecreate", true);
@@ -948,44 +958,51 @@ export async function diffCustomApi(
   const client = new DataverseClient(env.environmentUrl, context);
   const repository = new CustomApiRepository(client);
 
-  const remoteCatalog = await repository.exportCatalog(uniqueName, {
-    environmentUrl: env.environmentUrl,
-  });
+  const remoteApi = await repository.getCustomApiByUniqueName(uniqueName);
 
   const localApi = localCatalog.customApis[0];
-  const remoteApi = remoteCatalog.customApis[0];
 
   if (!localApi) {
     throw new Error(`Local JSON file for '${uniqueName}' contains no custom API.`);
   }
 
+  let customApiDiff: CustomApiSemanticDiffItem<CustomApiDefinitionModel>;
+  let requestParameterDiffs: Array<CustomApiSemanticDiffItem<CustomApiParameterModel>>;
+  let responsePropertyDiffs: Array<CustomApiSemanticDiffItem<CustomApiResponsePropertyModel>>;
+
   if (!remoteApi) {
-    throw new Error(`Remote definition for '${uniqueName}' could not be loaded.`);
+    customApiDiff = buildSemanticItem("customApi", uniqueName, "create", [], localApi, null);
+    requestParameterDiffs = (localApi.requestParameters ?? []).map((p) =>
+      buildSemanticItem("requestParameter", p.uniqueName, "create", [], p, null)
+    );
+    responsePropertyDiffs = (localApi.responseProperties ?? []).map((p) =>
+      buildSemanticItem("responseProperty", p.uniqueName, "create", [], p, null)
+    );
+  } else {
+    customApiDiff = diffSingleObject(
+      "customApi",
+      localApi,
+      remoteApi,
+      CUSTOM_API_COMPARE_FIELDS as string[],
+      CUSTOM_API_RECREATE_FIELDS as string[]
+    );
+
+    requestParameterDiffs = diffNamedCollection(
+      "requestParameter",
+      localApi.requestParameters ?? [],
+      remoteApi.requestParameters ?? [],
+      REQUEST_PARAMETER_COMPARE_FIELDS as string[],
+      REQUEST_PARAMETER_RECREATE_FIELDS as string[]
+    );
+
+    responsePropertyDiffs = diffNamedCollection(
+      "responseProperty",
+      localApi.responseProperties ?? [],
+      remoteApi.responseProperties ?? [],
+      RESPONSE_PROPERTY_COMPARE_FIELDS as string[],
+      RESPONSE_PROPERTY_RECREATE_FIELDS as string[]
+    );
   }
-
-  const customApiDiff = diffSingleObject(
-    "customApi",
-    localApi,
-    remoteApi,
-    CUSTOM_API_COMPARE_FIELDS as string[],
-    CUSTOM_API_RECREATE_FIELDS as string[]
-  );
-
-  const requestParameterDiffs = diffNamedCollection(
-    "requestParameter",
-    localApi.requestParameters ?? [],
-    remoteApi.requestParameters ?? [],
-    REQUEST_PARAMETER_COMPARE_FIELDS as string[],
-    REQUEST_PARAMETER_RECREATE_FIELDS as string[]
-  );
-
-  const responsePropertyDiffs = diffNamedCollection(
-    "responseProperty",
-    localApi.responseProperties ?? [],
-    remoteApi.responseProperties ?? [],
-    RESPONSE_PROPERTY_COMPARE_FIELDS as string[],
-    RESPONSE_PROPERTY_RECREATE_FIELDS as string[]
-  );
 
   const requestCounter = buildEmptyCounter();
   for (const item of requestParameterDiffs) {
