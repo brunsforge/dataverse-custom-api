@@ -121,6 +121,15 @@ export interface ValidateCustomApiResult {
   commandResult: CcdvCommandResult;
 }
 
+export interface PublisherInfo {
+  publisherId: string;
+  uniqueName: string;
+  friendlyName: string;
+  customizationPrefix: string;
+}
+
+export type ListPublishersResult = PublisherInfo[];
+
 export interface PrivilegeCheckItem {
   feature: string;
   privilegeName: string;

@@ -24,6 +24,7 @@ import type {
   ListCustomApisResult,
   SelectCustomApiOptions,
   SelectCustomApiResult,
+  ListPublishersResult,
   ValidateCustomApiOptions,
   ValidateCustomApiResult,
   ValidatePrivilegesResult,
@@ -46,6 +47,7 @@ import {
   setActiveCustomApi,
   validateLocalCatalog,
   validatePrivileges,
+  listPublishers,
   type CurrentCustomApiResult,
   type RemoveCustomApiResult,
 } from "./customApiService.js";
@@ -77,6 +79,7 @@ export interface CoreFacade {
     options?: CheckCustomApiMetadataOptions
   ): Promise<CheckCustomApiMetadataResult>;
   validatePrivileges(): Promise<ValidatePrivilegesResult>;
+  listPublishers(): Promise<ListPublishersResult>;
 }
 
 export function createCoreFacade(context?: RuntimeContext): CoreFacade {
@@ -162,6 +165,10 @@ export function createCoreFacade(context?: RuntimeContext): CoreFacade {
 
     async validatePrivileges(): Promise<ValidatePrivilegesResult> {
       return validatePrivileges(context);
+    },
+
+    async listPublishers(): Promise<ListPublishersResult> {
+      return listPublishers(context);
     },
   };
 }

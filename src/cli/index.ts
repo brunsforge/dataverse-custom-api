@@ -19,6 +19,7 @@ import { runApiExecutePlanCommand } from "./commands/api-exec-plan.js";
 import { runApiCheckMetadataCommand } from "./commands/api-check-metadata.js";
 import { runApiValidateCommand } from "./commands/api-validate.js";
 import { runValidatePrivilegesCommand } from "./commands/validatePrivileges.js";
+import { runApiListPublishersCommand } from "./commands/api-list-publishers.js";
 import { formatCliError } from "../utils/errorHelpers.js";
 
 const require = createRequire(import.meta.url);
@@ -201,14 +202,22 @@ apiCommand
 
 apiCommand
   .command("validate-privileges")
-  .description("Prüft relevante Dataverse-Privileges des konfigurierten App-Users")
-  .option("--verbose", "Zeigt alle gefundenen Privileges, nicht nur relevante")
+  .description("Check which Dataverse privileges the configured app user holds")
+  .option("--verbose", "Show all discovered privilege IDs, not just the relevant ones")
   .option("--json", "Machine-readable JSON output")
   .action(async (options) => {
     await runValidatePrivilegesCommand({
       verbose: options.verbose ?? false,
       json: options.json ?? false,
     });
+  });
+
+apiCommand
+  .command("list-publishers")
+  .description("List publishers registered in the active Dataverse environment")
+  .option("--json", "Machine-readable JSON output")
+  .action(async (options) => {
+    await runApiListPublishersCommand(options.json ?? false);
   });
 
 program.parseAsync(process.argv).catch((error: unknown) => {

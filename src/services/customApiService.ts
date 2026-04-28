@@ -25,8 +25,10 @@ import type { CcdvCommandResult } from "../models/diagnosticModels.js";
 import type { RuntimeContext } from "../models/runtime-context.js";
 import type {
   CheckCustomApiMetadataResult,
+  ListPublishersResult,
   MetadataMismatchItem,
   PrivilegeCheckItem,
+  PublisherInfo,
   ValidateCustomApiResult,
   ValidatePrivilegesResult,
 } from "../models/public-types.js";
@@ -1375,6 +1377,34 @@ export async function executeCustomApiSyncOperation(
       executionState,
     };
   }
+}
+
+// ── Publisher list ─────────────────────────────────────────────────────────────
+
+interface PublisherRow {
+  publisherid: string;
+  uniquename: string;
+  friendlyname: string;
+  customizationprefix: string;
+}
+
+export async function listPublishers(context?: RuntimeContext): Promise<ListPublishersResult> {
+  const env = await getCurrentEnvironment(context);
+  const client = new DataverseClient(env.environmentUrl, context);
+  const http = await client.createHttpClient();
+
+  const response = await http.get<{ value: PublisherRow[] }>(
+    "/publishers?$select=publisherid,uniquename,friendlyname,customizationprefix&$orderby=friendlyname"
+  );
+
+  return (response.data.value ?? [])
+    .filter((row) => row.customizationprefix && row.customizationprefix !== "mscrm")
+    .map((row): PublisherInfo => ({
+      publisherId: row.publisherid,
+      uniqueName: row.uniquename,
+      friendlyName: row.friendlyname,
+      customizationPrefix: row.customizationprefix,
+    }));
 }
 
 // ── Privilege validation ───────────────────────────────────────────────────────

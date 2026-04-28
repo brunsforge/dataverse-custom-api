@@ -35,6 +35,7 @@ npm link
   - execute full sync plans
   - create, update, or delete Custom API metadata in Dataverse
   - **validate privileges** — check which Dataverse privileges the configured App User holds and which features are available or restricted
+  - **list publishers** — show all registered publishers with their customization prefixes
 - **Graceful privilege fallback**: if the App User lacks `prvAppendToPluginType`, `createCustomApi` automatically retries without the PluginType binding and records a `warning` in the sync result instead of failing
 - **Simulation mode**: preview operations with `--simulate` before applying changes
 - **JSON and human-readable output**: every command supports `--json`
@@ -474,6 +475,42 @@ When `createCustomApi` is executed and the App User lacks `prvAppendToPluginType
 - assign `prvAppendToPluginType` (AppendTo, plugintype, Org level) to the App User's security role, or
 - link the Plugin manually in the Maker Portal after creation.
 
+### List publishers
+
+Lists all publishers registered in the active Dataverse environment. The publisher's `customizationPrefix` must be used as the prefix of a Custom API `uniqueName` (e.g. `myprefix_MyAction`).
+
+```bash
+dvc api list-publishers
+# machine-readable output:
+dvc api list-publishers --json
+```
+
+**Output:**
+
+```text
+PREFIX               FRIENDLY NAME                           UNIQUE NAME
+───────────────────────────────────────────────────────────────────────────────
+myprefix             My Company Publisher                    mycompany_publisher
+contoso              Contoso Default Publisher               contoso_default
+```
+
+**JSON output:**
+
+```json
+{
+  "publishers": [
+    {
+      "publisherId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "uniqueName": "mycompany_publisher",
+      "friendlyName": "My Company Publisher",
+      "customizationPrefix": "myprefix"
+    }
+  ]
+}
+```
+
+> **Note:** The Microsoft system publisher (`mscrm`) is excluded from the list — its prefix cannot be used for custom solutions.
+
 ### Remove local artifacts
 
 Removes local cached and exported files. Does not delete the Custom API from Dataverse.
@@ -538,8 +575,11 @@ dvc api exec-plan
 # If prvAppendToPluginType is missing, the PluginType binding will be skipped on create
 dvc api validate-privileges
 
+# List publishers to find the correct prefix for your uniqueName
+dvc api list-publishers
+
 # Create a new JSON catalog file manually (see structure below)
-# e.g. .cache/customapis/ccsm_NewApi.json
+# e.g. .cache/customapis/myprefix_NewApi.json
 
 # Set the API as active even before it exists in Dataverse
 dvc api use -n ccsm_NewApi
@@ -696,6 +736,7 @@ npm install -g @brunsforge/dataverse-custom-api
   - einzelne Sync-Operationen ausführen
   - vollständige Sync-Pläne ausführen
   - **Privileges prüfen** — prüft welche Dataverse-Privileges der konfigurierte App-User besitzt und welche Features verfügbar oder eingeschränkt sind
+  - **Publisher auflisten** — zeigt alle registrierten Publisher mit ihren Customization-Prefixen an
 - **Graceful Privilege-Fallback**: fehlt dem App-User `prvAppendToPluginType`, wird `createCustomApi` automatisch ohne das PluginType-Binding wiederholt und eine `warning` im Sync-Ergebnis eingetragen — statt mit einem Fehler abzubrechen
 - **Simulationsmodus**: Operationen mit `--simulate` vorab prüfen
 - **JSON und menschenlesbare Ausgaben**: alle Befehle unterstützen `--json`
@@ -879,6 +920,27 @@ Fehlt dem App-User `prvAppendToPluginType`, wiederholt die CLI `createCustomApi`
 - `prvAppendToPluginType` (AppendTo, plugintype, Org-Ebene) der Sicherheitsrolle des App-Users vergeben, oder
 - das Plugin nach der Erstellung manuell im Maker Portal verknüpfen.
 
+### Publisher auflisten
+
+Listet alle in der aktiven Dataverse-Umgebung registrierten Publisher auf. Der `customizationPrefix` eines Publishers muss als Präfix im `uniqueName` einer Custom API verwendet werden (z. B. `meinprefix_MyAction`).
+
+```bash
+dvc api list-publishers
+# maschinenlesbar:
+dvc api list-publishers --json
+```
+
+**Ausgabe:**
+
+```text
+PREFIX               FRIENDLY NAME                           UNIQUE NAME
+───────────────────────────────────────────────────────────────────────────────
+meinprefix           Mein Firmen-Publisher                   meinfirma_publisher
+contoso              Contoso Default Publisher               contoso_default
+```
+
+> **Hinweis:** Der Microsoft-Systempublisher (`mscrm`) wird nicht angezeigt — sein Präfix kann nicht für eigene Lösungen verwendet werden.
+
 ### Lokale Artefakte entfernen
 
 ```bash
@@ -932,8 +994,11 @@ dvc api exec-plan
 # PluginType-Binding beim Erstellen automatisch weggelassen (+ Warning im Ergebnis)
 dvc api validate-privileges
 
+# Publisher auflisten, um den korrekten Präfix für den uniqueName zu ermitteln
+dvc api list-publishers
+
 # Neue JSON-Katalog-Datei erstellen (siehe Struktur unten)
-# z. B. .cache/customapis/ccsm_NewApi.json
+# z. B. .cache/customapis/meinprefix_NewApi.json
 
 dvc api use -n ccsm_NewApi
 
