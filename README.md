@@ -4,6 +4,36 @@ A Node.js/TypeScript CLI for managing Dataverse Custom APIs. It enables reading,
 
 The GitHub repository contains the TypeScript `src/` source code. The compiled `dist/` output is generated during build and included together with `src/` in the published npm package.
 
+---
+
+## Before you begin
+
+**What is a Dataverse Custom API?**
+Custom APIs in Microsoft Dataverse are custom messages (actions or functions) that can be called from Power Automate, Power Apps, or code. They are defined by metadata: a name, optional request parameters, and optional response properties.
+
+**What does this CLI do?**
+This tool manages that metadata. You export a Custom API definition as a local JSON file, edit it, validate it, and sync the changes back to Dataverse — all from the command line without touching the Maker Portal directly.
+
+**What do you need to get started?**
+- Node.js 16+ installed
+- Access to a Dataverse environment
+- An Azure AD / Microsoft Entra ID App Registration with the correct permissions (see [Authentication](#authentication-and-connection) below)
+
+---
+
+## What do you want to do?
+
+Jump directly to your scenario:
+
+| Goal | Where to go |
+|------|-------------|
+| Connect to a Dataverse environment for the first time | [Connect to an environment](#connect-to-an-environment) |
+| Create a new Custom API | [Scenario: Create a new Custom API](#3-create-a-new-custom-api) |
+| Edit an existing Custom API | [Scenario: Edit an existing Custom API](#2-edit-an-existing-custom-api) |
+| Check why local and remote metadata differ | [Scenario: Check metadata problems](#scenario-check-metadata-problems) |
+
+---
+
 ## Installation
 
 ```bash
@@ -19,6 +49,8 @@ npm install
 npm run build
 npm link
 ```
+
+---
 
 ## Features
 
@@ -42,6 +74,8 @@ npm link
 - **Structured diagnostics**: `api validate --json` returns a `CcdvCommandResult` envelope for VS Code extension integration
 
 > **Warning:** Commands that execute without `--simulate` may create, update, or delete Custom API metadata in the connected Dataverse environment.
+
+---
 
 ## Authentication and connection
 
@@ -120,6 +154,8 @@ Auth mode: deviceCode
 Cache file: /path/to/cache/environment.json
 ```
 
+---
+
 ## Environment management
 
 ### List environments
@@ -161,6 +197,8 @@ dvc env use -i env-002
 ```bash
 dvc env remove -i env-001
 ```
+
+---
 
 ## Custom API management
 
@@ -413,15 +451,31 @@ Compares the local definition with current Dataverse metadata and reports field-
 
 ```bash
 dvc api check-metadata
+# or with explicit name:
+dvc api check-metadata -n ccsm_MyCustomApi
+# machine-readable output:
+dvc api check-metadata --json
 ```
 
-**Output:**
+**Output — no mismatches:**
 
 ```text
 Metadata check for: ccsm_MyCustomApi
 Status: ok
 No metadata mismatches found.
 ```
+
+**Output — with mismatches:**
+
+```text
+Metadata check for: ccsm_MyCustomApi
+Status: warning
+2 metadata mismatches found.
+- customApi:ccsm_MyCustomApi | description | local="Updated description" | remote="Old description" | recreate=no
+- requestParameter:RecipientId | displayName | local="Recipient ID" | remote="Recipient" | recreate=no
+```
+
+Each mismatch line shows the object type, the affected field, the local and remote value, and whether the field is immutable (recreate=yes means the object must be deleted and re-created to apply the change).
 
 ### Validate Dataverse privileges
 
@@ -521,6 +575,8 @@ dvc api remove
 dvc api remove -n ccsm_MyCustomApi
 ```
 
+---
+
 ## Typical workflows
 
 ### 1. Setup and connect
@@ -599,11 +655,35 @@ dvc api exec-plan
 # will contain a warning — check the output and link the Plugin manually if needed.
 ```
 
+### Scenario: Check metadata problems
+
+Use this when you suspect the local JSON file and Dataverse have drifted apart — for example after a manual change in the Maker Portal.
+
+```bash
+# Ensure the correct API is active
+dvc api use -n ccsm_MyCustomApi
+
+# Compare local vs. remote field-by-field
+dvc api check-metadata
+
+# If differences are found, export the current remote definition
+# (overwrites the local file with what Dataverse has):
+dvc api export
+
+# Or: edit the local file to match your intent, then re-validate and sync:
+dvc api validate
+dvc api plan
+dvc api exec-plan --simulate
+dvc api exec-plan
+```
+
 ### Why validate before plan?
 
 `api validate` is a local-only check — no network call, instant feedback. It catches issues that Dataverse would reject with a 400 error (e.g. `logicalEntityName` on an `EntityCollection` parameter, missing publisher prefix, invalid type values).
 
 `api plan` runs the same validation internally and will block if blocking errors are found. Running `api validate` first gives you the full structured diagnostic report — including non-blocking warnings and informational hints — before attempting to build the plan.
+
+---
 
 ## Custom API JSON structure
 
@@ -663,6 +743,8 @@ The catalog file written by `api export` and read by `api plan` / `api validate`
 | `name` (parameter/property) | Recommended format: `{customApiUniqueName}.{childUniqueName}` |
 | `uniqueName` (Custom API) | Must include publisher prefix, e.g. `ccsm_MyApi`; only letters, digits, underscores |
 
+---
+
 ## Publishing notes
 
 The package is built from TypeScript. The repository does not need committed `dist/` files; they are generated during build and included in the published npm package.
@@ -690,6 +772,8 @@ For scoped public packages:
 npm publish --access public
 ```
 
+---
+
 ## Requirements
 
 - Node.js 16+
@@ -711,16 +795,51 @@ Andreas Brunsmann
 - Repository: https://github.com/brunsforge/dataverse-custom-api
 
 ---
+---
 
 # Dataverse Custom API CLI
 
 Eine Node.js/TypeScript-basierte CLI zum Verwalten von Dataverse Custom APIs. Sie ermöglicht das Lesen, Exportieren, Bearbeiten, **Validieren**, Vergleichen, Planen und Synchronisieren von Custom-API-Definitionen zwischen lokalen JSON-Dateien und Dataverse-Umgebungen.
+
+Das GitHub-Repository enthält den TypeScript-Quellcode im Ordner `src/`. Das kompilierte `dist/`-Verzeichnis wird beim Build erzeugt und zusammen mit `src/` im veröffentlichten npm-Paket ausgeliefert.
+
+---
+
+## Vor dem Einstieg
+
+**Was ist eine Dataverse Custom API?**
+Custom APIs in Microsoft Dataverse sind benutzerdefinierte Nachrichten (Actions oder Functions), die aus Power Automate, Power Apps oder Code aufgerufen werden können. Sie werden durch Metadaten definiert: einen Namen, optionale Request-Parameter und optionale Response-Properties.
+
+**Was macht diese CLI?**
+Das Tool verwaltet genau diese Metadaten. Du exportierst eine Custom-API-Definition als lokale JSON-Datei, bearbeitest sie, validierst sie und synchronisierst die Änderungen zurück nach Dataverse — alles über die Kommandozeile, ohne das Maker Portal direkt zu verwenden.
+
+**Was benötigst du zum Einstieg?**
+- Node.js 16+ installiert
+- Zugriff auf eine Dataverse-Umgebung
+- Eine Azure AD / Microsoft Entra ID App Registration mit den richtigen Berechtigungen (siehe [Authentifizierung](#authentifizierung-und-verbindung) unten)
+
+---
+
+## Was möchtest du tun?
+
+Springe direkt zu deinem Szenario:
+
+| Ziel | Direkt zum Abschnitt |
+|------|----------------------|
+| Zum ersten Mal mit einer Dataverse-Umgebung verbinden | [Zu einem Environment connecten](#zu-einem-environment-connecten) |
+| Eine neue Custom API anlegen | [Szenario: Neue Custom API anlegen](#3-neue-custom-api-anlegen) |
+| Eine vorhandene Custom API bearbeiten | [Szenario: Vorhandene Custom API bearbeiten](#2-vorhandene-custom-api-bearbeiten) |
+| Prüfen, warum lokale und remote Metadaten abweichen | [Szenario: Metadaten-Probleme prüfen](#szenario-metadaten-probleme-prüfen) |
+
+---
 
 ## Installation
 
 ```bash
 npm install -g @brunsforge/dataverse-custom-api
 ```
+
+---
 
 ## Übersicht der Features
 
@@ -743,25 +862,113 @@ npm install -g @brunsforge/dataverse-custom-api
 
 > **Achtung:** Befehle, die ohne `--simulate` ausgeführt werden, können Custom-API-Metadaten in der verbundenen Dataverse-Umgebung erstellen, ändern oder löschen.
 
-## Verbindung
+---
+
+## Authentifizierung und Verbindung
+
+### Authentifizierungsmethoden
+
+Die CLI unterstützt drei Authentifizierungsmethoden:
+
+1. **Device Code Flow** (empfohlen für interaktive Nutzung)
+2. **Client Secret** (für Automatisierung / App-only-Zugriff)
+3. **Interactive Browser** (browserbasierter Login)
+
+### Konfiguration
+
+Erstelle eine `auth.json`-Datei im Repository-Stammverzeichnis auf Basis einer der mitgelieferten Beispieldateien:
+
+- `auth.devicecode.example.json` → Device Code
+- `auth.clientsecret.example.json` → Client Secret
+- `auth.interactivebrowser.example.json` → Interactive Browser
+
+#### Device Code
+
+```json
+{
+  "tenantId": "deine-tenant-id",
+  "clientId": "deine-client-id",
+  "authMode": "deviceCode"
+}
+```
+
+**App-Registration-Setup:**
+
+- Azure AD / Microsoft Entra ID App Registration anlegen
+- API-Berechtigung hinzufügen: Dynamics CRM > user_impersonation
+- Redirect-URI hinzufügen: `https://login.microsoftonline.com/common/oauth2/nativeclient`
+- Kein Client Secret erforderlich
+
+#### Client Secret
+
+```json
+{
+  "tenantId": "deine-tenant-id",
+  "clientId": "deine-app-only-client-id",
+  "clientSecret": "dein-client-secret",
+  "authMode": "clientSecret"
+}
+```
+
+**App-Registration-Setup:**
+
+- Azure AD / Microsoft Entra ID App Registration anlegen
+- Client Secret erstellen
+- API-Berechtigung hinzufügen: Dynamics CRM > user_impersonation (oder Dataverse-Anwendungsberechtigungen für App-only-Zugriff)
+- Kein Redirect-URI erforderlich
+
+#### Interactive Browser
+
+```json
+{
+  "tenantId": "deine-tenant-id",
+  "clientId": "deine-client-id",
+  "authMode": "interactiveBrowser"
+}
+```
+
+### Zu einem Environment connecten
 
 ```bash
-dvc connect -u "https://your-org.crm.dynamics.com"
+dvc connect -u "https://deine-org.crm.dynamics.com"
 ```
 
+**Ausgabe:**
+
 ```text
-Connected and cached: https://your-org.crm.dynamics.com
+Connected and cached: https://deine-org.crm.dynamics.com
 Auth mode: deviceCode
+Cache file: /pfad/zum/cache/environment.json
 ```
+
+---
 
 ## Environment-Management
 
 ```bash
-dvc env list       # alle gespeicherten Environments auflisten
-dvc env current    # aktives Environment anzeigen
-dvc env use -i <id>     # Environment wechseln
-dvc env remove -i <id>  # Environment entfernen
+dvc env list              # alle gespeicherten Environments auflisten
+dvc env current           # aktives Environment anzeigen
+dvc env use -i <id>       # Environment wechseln
+dvc env remove -i <id>    # Environment entfernen
 ```
+
+**Ausgabe von `dvc env list`:**
+
+```text
+* env-001 (Production) -> https://prod.crm.dynamics.com
+- env-002 (Development) -> https://dev.crm.dynamics.com
+```
+
+**Ausgabe von `dvc env current`:**
+
+```text
+Active environment: env-001
+Display name: Production
+URL: https://prod.crm.dynamics.com
+Auth mode: deviceCode
+```
+
+---
 
 ## Custom API-Management
 
@@ -773,11 +980,27 @@ dvc api current            # aktive API anzeigen
 dvc api use -n ccsm_MyApi  # API als aktiv setzen
 ```
 
+**Ausgabe von `dvc api list`:**
+
+```text
+* ccsm_MyCustomApi
+- ccsm_AnotherApi
+- sample_CustomFunction
+```
+
 ### Exportieren
+
+Exportiert die aktuelle Dataverse-Definition in eine lokale JSON-Katalog-Datei.
 
 ```bash
 dvc api export
 dvc api export -n ccsm_MyApi
+```
+
+**Ausgabe:**
+
+```text
+Exported: /pfad/zu/output/ccsm_MyApi.json
 ```
 
 ### Lokale Definition validieren
@@ -807,7 +1030,11 @@ ERROR [CCDV_PARAM_LOGICAL_ENTITY_NAME_NOT_ALLOWED] [ccsm_MyApi > NewParameter].l
       Request parameter 'NewParameter' has type 'EntityCollection' which does not support logicalEntityName.
       Fix: Remove logicalEntityName or change the parameter type to Entity or EntityReference.
 
-Summary: 1 error(s), 0 warning(s), 0 info(s)
+WARN  [CCDV_PARAM_NAME_RECOMMENDED_FORMAT] [ccsm_MyApi > InputParam].name
+      Request parameter 'InputParam' name 'InputParam' does not follow the recommended format 'ccsm_MyApi.InputParam'.
+      Fix: Set name to 'ccsm_MyApi.InputParam'.
+
+Summary: 1 error(s), 1 warning(s), 0 info(s)
 ```
 
 Mit `--json` wird ein vollständiges `CcdvCommandResult`-Envelope zurückgegeben (für VS-Code-Extension-Integration).
@@ -827,17 +1054,40 @@ Mit `--json` wird ein vollständiges `CcdvCommandResult`-Envelope zurückgegeben
 
 ### Vergleichen
 
+Vergleicht die lokale JSON-Datei mit den aktuellen Dataverse-Metadaten und zeigt Feldunterschiede.
+
 ```bash
 dvc api diff
 dvc api diff -n ccsm_MyApi
 ```
 
+**Ausgabe:**
+
+```text
+Diff for: ccsm_MyApi
+Differences found: yes
+Custom API: update
+
+Request parameter summary:
+  none=1, create=1, update=0, delete=0, recreate=0
+- create: NewParameter
+
+Response property summary:
+  none=2, create=0, update=0, delete=0, recreate=0
+```
+
+Mit `--json` für die vollständige maschinenlesbare Ausgabe.
+
 ### Sync-Plan erstellen
+
+Vergleicht lokale Definition mit Dataverse, erstellt eine geordnete Operationsliste und schreibt Plan- und Statusdateien. **Validierung läuft automatisch** — bei blockierenden Fehlern wird kein Plan erstellt.
 
 ```bash
 dvc api plan
 dvc api plan -n ccsm_MyApi
 ```
+
+**Ausgabe:**
 
 ```text
 Plan created: .cache/customapis/ccsm_MyApi.syncplan.json
@@ -848,25 +1098,82 @@ Destructive changes required: no
 - [20] updateCustomApi ccsm_MyApi (changed)
 ```
 
-### Ausführen
+**Bei Validierungsfehler:**
+
+```text
+Error: Sync plan blocked by 1 validation error(s). Run 'api validate' for the full report.
+First error: [CCDV_PARAM_LOGICAL_ENTITY_NAME_NOT_ALLOWED] Request parameter 'NewParameter' has type 'EntityCollection' which does not support logicalEntityName.
+```
+
+### Plan ausführen
 
 ```bash
 dvc api exec-plan --simulate   # Dry Run
 dvc api exec-plan              # live ausführen
 ```
 
+**Ausgabe:**
+
+```text
+Plan executed for: ccsm_MyApi
+Status: succeeded
+State file: .cache/customapis/ccsm_MyApi.syncstate.json
+- [10] createRequestParameter NewParameter: succeeded
+- [20] updateCustomApi ccsm_MyApi: succeeded
+```
+
+> **Achtung:** Ohne `--simulate` werden alle Operationen nacheinander gegen die verbundene Dataverse-Umgebung ausgeführt.
+
 ### Einzelne Operation ausführen
 
 ```bash
-dvc api exec-op -o "<operationId>" --simulate
-dvc api exec-op -o "<operationId>"
+dvc api exec-op -o "<operationId>" --simulate   # Dry Run
+dvc api exec-op -o "<operationId>"              # live ausführen
 ```
+
+**Ausgabe:**
+
+```text
+Operation: op-0010-createRequestParameter-NewParameter-<uuid>
+Status: succeeded
+Message: createRequestParameter for NewParameter completed successfully.
+Simulated: no
+State file: .cache/customapis/ccsm_MyApi.syncstate.json
+```
+
+> **Achtung:** Ohne `--simulate` wird die Operation gegen die verbundene Dataverse-Umgebung ausgeführt.
 
 ### Metadaten-Konsistenz prüfen
 
+Vergleicht die lokale Definition mit den aktuellen Dataverse-Metadaten und meldet Feldabweichungen. Erfordert eine Netzwerkverbindung.
+
 ```bash
 dvc api check-metadata
+# mit explizitem Namen:
+dvc api check-metadata -n ccsm_MyApi
+# maschinenlesbar:
+dvc api check-metadata --json
 ```
+
+**Ausgabe ohne Abweichungen:**
+
+```text
+Metadata check for: ccsm_MyApi
+Status: ok
+No metadata mismatches found.
+```
+
+**Ausgabe mit Abweichungen:**
+
+```text
+Metadata check for: ccsm_MyApi
+Status: warning
+2 metadata mismatches found.
+- customApi:ccsm_MyApi | description | local="Aktualisierte Beschreibung" | remote="Alte Beschreibung" | recreate=no
+- requestParameter:RecipientId | displayName | local="Empfänger-ID" | remote="Empfänger" | recreate=no
+```
+
+Jede Zeile zeigt: Objekttyp, betroffenes Feld, lokalen Wert, Remote-Wert und ob das Feld unveränderlich ist (`recreate=yes` bedeutet: das Objekt muss gelöscht und neu erstellt werden, um die Änderung anzuwenden).
 
 ### Dataverse-Privileges prüfen
 
@@ -939,37 +1246,63 @@ meinprefix           Mein Firmen-Publisher                   meinfirma_publisher
 contoso              Contoso Default Publisher               contoso_default
 ```
 
+**JSON-Ausgabe:**
+
+```json
+{
+  "publishers": [
+    {
+      "publisherId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "uniqueName": "meinfirma_publisher",
+      "friendlyName": "Mein Firmen-Publisher",
+      "customizationPrefix": "meinprefix"
+    }
+  ]
+}
+```
+
 > **Hinweis:** Der Microsoft-Systempublisher (`mscrm`) wird nicht angezeigt — sein Präfix kann nicht für eigene Lösungen verwendet werden.
 
 ### Lokale Artefakte entfernen
+
+Entfernt lokale Cache- und Export-Dateien. Löscht die Custom API **nicht** aus Dataverse.
 
 ```bash
 dvc api remove
 dvc api remove -n ccsm_MyApi
 ```
 
+---
+
 ## Typischer Workflow
 
-### Verbindung herstellen und Privileges prüfen
+### 1. Verbindung herstellen und Privileges prüfen
 
 ```bash
-# Auth-Konfiguration erstellen und Environment verbinden
-dvc connect -u "https://your-org.crm.dynamics.com"
+# Auth-Konfiguration erstellen
+cp auth.devicecode.example.json auth.json
+# auth.json mit Tenant-ID und Client-ID befüllen
+
+# Environment verbinden
+dvc connect -u "https://deine-org.crm.dynamics.com"
 
 # Optional: Privileges des App-Users prüfen
 dvc api validate-privileges
 ```
 
-### Vorhandene Custom API bearbeiten
+### 2. Vorhandene Custom API bearbeiten
 
 ```bash
+# Verfügbare APIs auflisten
 dvc api list
+
+# API als aktiv setzen
 dvc api use -n ccsm_ExistingApi
 
 # Aktuelle Definition aus Dataverse holen
 dvc api export
 
-# JSON-Datei lokal bearbeiten (z. B. Parameter hinzufügen)
+# JSON-Datei lokal bearbeiten (z. B. Parameter hinzufügen, Beschreibung ändern)
 
 # Lokale Definition validieren — Fehler beheben, bevor der Plan erstellt wird
 dvc api validate
@@ -987,7 +1320,7 @@ dvc api exec-plan --simulate
 dvc api exec-plan
 ```
 
-### Neue Custom API erstellen
+### 3. Neue Custom API anlegen
 
 ```bash
 # Optional: Privileges prüfen — fehlt prvAppendToPluginType, wird das
@@ -1000,7 +1333,8 @@ dvc api list-publishers
 # Neue JSON-Katalog-Datei erstellen (siehe Struktur unten)
 # z. B. .cache/customapis/meinprefix_NewApi.json
 
-dvc api use -n ccsm_NewApi
+# API als aktiv setzen (auch bevor sie in Dataverse existiert)
+dvc api use -n meinprefix_NewApi
 
 # Lokale Definition validieren, bevor der Plan erstellt wird
 dvc api validate
@@ -1017,11 +1351,35 @@ dvc api exec-plan
 # Plugin anschließend manuell im Maker Portal verknüpfen.
 ```
 
+### Szenario: Metadaten-Probleme prüfen
+
+Verwende dieses Vorgehen, wenn du vermutest, dass lokale JSON-Datei und Dataverse auseinander gelaufen sind — z. B. nach einer manuellen Änderung im Maker Portal.
+
+```bash
+# Sicherstellen, dass die richtige API aktiv ist
+dvc api use -n ccsm_MyApi
+
+# Lokale Definition feldgenau mit Dataverse vergleichen
+dvc api check-metadata
+
+# Bei gefundenen Abweichungen: aktuelle Remote-Definition exportieren
+# (überschreibt die lokale Datei mit dem, was Dataverse hat):
+dvc api export
+
+# Oder: lokale Datei nach eigenem Willen anpassen, dann validieren und synchronisieren:
+dvc api validate
+dvc api plan
+dvc api exec-plan --simulate
+dvc api exec-plan
+```
+
 ### Warum vor dem Plan validieren?
 
 `api validate` ist ein rein lokaler Check — keine Netzwerkverbindung, sofortiges Feedback. Es erkennt alle Probleme, die Dataverse mit einem 400-Fehler ablehnen würde, sowie Warnungen und Hinweise zu empfohlenen Formaten.
 
 `api plan` läuft dieselbe Validierung intern ab und blockiert bei blockierenden Fehlern. Mit `api validate` vorab erhältst du den vollständigen strukturierten Report — inklusive Warnungen und Infos — bevor du versuchst, einen Plan zu erstellen.
+
+---
 
 ## JSON-Struktur der Custom API
 
@@ -1030,14 +1388,14 @@ dvc api exec-plan
   "schemaVersion": "1.0",
   "source": {
     "exportedAtUtc": "2025-01-15T10:00:00.000Z",
-    "environmentUrl": "https://your-org.crm.dynamics.com"
+    "environmentUrl": "https://deine-org.crm.dynamics.com"
   },
   "customApis": [
     {
       "uniqueName": "ccsm_MyCustomApi",
       "name": "ccsm_MyCustomApi",
       "displayName": "My Custom API",
-      "description": "Processes a survey recipient record.",
+      "description": "Verarbeitet einen Survey-Recipient-Datensatz.",
       "bindingType": "Global",
       "isFunction": false,
       "isPrivate": false,
@@ -1048,7 +1406,7 @@ dvc api exec-plan
           "uniqueName": "RecipientId",
           "name": "ccsm_MyCustomApi.RecipientId",
           "displayName": "Recipient ID",
-          "description": "ID of the recipient record.",
+          "description": "ID des Recipient-Datensatzes.",
           "type": "EntityReference",
           "logicalEntityName": "ccsm_surveyrecipient",
           "isOptional": false
@@ -1059,7 +1417,7 @@ dvc api exec-plan
           "uniqueName": "Success",
           "name": "ccsm_MyCustomApi.Success",
           "displayName": "Success",
-          "description": "Whether the operation succeeded.",
+          "description": "Gibt an, ob die Operation erfolgreich war.",
           "type": "Boolean"
         }
       ]
@@ -1068,12 +1426,25 @@ dvc api exec-plan
 }
 ```
 
+**Feldübersicht:**
+
+| Feld | Werte / Einschränkungen |
+|------|------------------------|
+| `bindingType` | `"Global"`, `"Entity"`, `"EntityCollection"` |
+| `allowedCustomProcessingStepType` | `"None"`, `"AsyncOnly"`, `"SyncAndAsync"` |
+| `type` (Parameter/Property) | `"Boolean"`, `"DateTime"`, `"Decimal"`, `"Entity"`, `"EntityCollection"`, `"EntityReference"`, `"Float"`, `"Integer"`, `"Money"`, `"Picklist"`, `"String"`, `"StringArray"`, `"Guid"` |
+| `logicalEntityName` | Nur bei `Entity` oder `EntityReference` setzen; bei allen anderen Types weglassen |
+| `name` (Parameter/Property) | Empfohlenes Format: `{customApiUniqueName}.{childUniqueName}` |
+| `uniqueName` (Custom API) | Muss Publisher-Präfix enthalten, z. B. `ccsm_MyApi`; nur Buchstaben, Ziffern, Unterstriche |
+
+---
+
 ## Voraussetzungen
 
 - Node.js 16+
 - npm
 - Zugriff auf eine Dataverse-Umgebung
-- Korrekte Azure AD / Microsoft Entra ID App Registration
+- Korrekte Azure AD / Microsoft Entra ID App Registration mit den benötigten API-Berechtigungen
 - Ausreichende Dataverse-Berechtigungen — nach dem Verbinden mit `dvc api validate-privileges` prüfen, welche Privileges verfügbar sind
 
 ## Lizenz
