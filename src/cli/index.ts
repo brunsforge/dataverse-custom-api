@@ -18,6 +18,7 @@ import { runApiExecuteOperationCommand } from "./commands/api-exec-op.js";
 import { runApiExecutePlanCommand } from "./commands/api-exec-plan.js";
 import { runApiCheckMetadataCommand } from "./commands/api-check-metadata.js";
 import { runApiValidateCommand } from "./commands/api-validate.js";
+import { runValidatePrivilegesCommand } from "./commands/validatePrivileges.js";
 import { formatCliError } from "../utils/errorHelpers.js";
 
 const require = createRequire(import.meta.url);
@@ -196,6 +197,18 @@ apiCommand
   .option("--json", "Machine-readable JSON output (CcdvCommandResult envelope)")
   .action(async (options) => {
     await runApiValidateCommand(options.name, options.json ?? false);
+  });
+
+apiCommand
+  .command("validate-privileges")
+  .description("Prüft relevante Dataverse-Privileges des konfigurierten App-Users")
+  .option("--verbose", "Zeigt alle gefundenen Privileges, nicht nur relevante")
+  .option("--json", "Machine-readable JSON output")
+  .action(async (options) => {
+    await runValidatePrivilegesCommand({
+      verbose: options.verbose ?? false,
+      json: options.json ?? false,
+    });
   });
 
 program.parseAsync(process.argv).catch((error: unknown) => {

@@ -181,6 +181,7 @@ export interface CustomApiSyncOperationResult {
   message: string;
   simulated: boolean;
   error?: CustomApiSyncOperationError;
+  warning?: string;
 }
 
 export interface CustomApiSyncExecutionOperationState extends CustomApiSyncOperation {
@@ -191,6 +192,7 @@ export interface CustomApiSyncExecutionOperationState extends CustomApiSyncOpera
   message?: string;
   simulated?: boolean;
   error?: CustomApiSyncOperationError;
+  warning?: string;
 }
 
 export interface CustomApiSyncExecutionState {

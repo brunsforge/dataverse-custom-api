@@ -34,6 +34,8 @@ npm link
   - execute single sync operations
   - execute full sync plans
   - create, update, or delete Custom API metadata in Dataverse
+  - **validate privileges** — check which Dataverse privileges the configured App User holds and which features are available or restricted
+- **Graceful privilege fallback**: if the App User lacks `prvAppendToPluginType`, `createCustomApi` automatically retries without the PluginType binding and records a `warning` in the sync result instead of failing
 - **Simulation mode**: preview operations with `--simulate` before applying changes
 - **JSON and human-readable output**: every command supports `--json`
 - **Structured diagnostics**: `api validate --json` returns a `CcdvCommandResult` envelope for VS Code extension integration
@@ -420,6 +422,58 @@ Status: ok
 No metadata mismatches found.
 ```
 
+### Validate Dataverse privileges
+
+Checks which relevant Dataverse privileges the configured App User holds and reports which features are available or missing. Requires a network connection.
+
+```bash
+dvc api validate-privileges
+# show all discovered privilege IDs:
+dvc api validate-privileges --verbose
+# machine-readable output:
+dvc api validate-privileges --json
+```
+
+**Output:**
+
+```text
+Privilege-Validierung für: orgf707a816.crm16.dynamics.com
+App-User: CCDV Custom API CLI - AppOnly (6dcbb78d-...)
+
+FEATURE                          PRIVILEGE                           STATUS
+──────────────────────────────────────────────────────────────────────────────
+Custom API lesen                 prvReadCustomAPI                    ✓ Verfügbar
+Custom API anlegen               prvCreateCustomAPI                  ✓ Verfügbar
+Custom API bearbeiten            prvWriteCustomAPI                   ✓ Verfügbar
+Custom API löschen               prvDeleteCustomAPI                  ✓ Verfügbar
+PluginType-Binding               prvAppendToPluginType               ✗ Fehlt
+Plugin Steps anlegen             prvCreateSdkMessageProcessingStep   ✗ Fehlt
+
+HINWEISE:
+• PluginType-Binding fehlt: Custom APIs werden ohne Plugin-Verknüpfung erstellt.
+  Vergib 'prvAppendToPluginType' (AppendTo, plugintype, Org-Ebene) an die Sicherheitsrolle.
+• Plugin Steps fehlen: Schrittregistrierungen können nicht automatisch angelegt werden.
+  Vergib 'prvCreateSdkMessageProcessingStep' (Create, sdkmessageprocessingstep, Org-Ebene).
+```
+
+**Checked privileges:**
+
+| Feature | Privilege | Known ID |
+|---------|-----------|----------|
+| Read Custom APIs | `prvReadCustomAPI` | resolved via API |
+| Create Custom APIs | `prvCreateCustomAPI` | resolved via API |
+| Update Custom APIs | `prvWriteCustomAPI` | resolved via API |
+| Delete Custom APIs | `prvDeleteCustomAPI` | resolved via API |
+| PluginType binding on create | `prvAppendToPluginType` | `574c053e-6488-4bfb-832a-cbc47aff8b32` |
+| Create Plugin Steps | `prvCreateSdkMessageProcessingStep` | resolved via API |
+
+**Graceful fallback for `prvAppendToPluginType`:**
+
+When `createCustomApi` is executed and the App User lacks `prvAppendToPluginType`, the CLI automatically retries without the `PluginTypeId@odata.bind` field. The Custom API is created successfully but without the Plugin binding. The sync result (`exec-op`, `exec-plan`) contains a `warning` field explaining what was skipped and how to remediate:
+
+- assign `prvAppendToPluginType` (AppendTo, plugintype, Org level) to the App User's security role, or
+- link the Plugin manually in the Maker Portal after creation.
+
 ### Remove local artifacts
 
 Removes local cached and exported files. Does not delete the Custom API from Dataverse.
@@ -441,6 +495,9 @@ cp auth.devicecode.example.json auth.json
 
 # Connect to an environment
 dvc connect -u "https://your-org.crm.dynamics.com"
+
+# Optional: verify that the App User has the required privileges
+dvc api validate-privileges
 ```
 
 ### 2. Edit an existing Custom API
@@ -477,6 +534,10 @@ dvc api exec-plan
 ### 3. Create a new Custom API
 
 ```bash
+# Optional: check App User privileges before creating
+# If prvAppendToPluginType is missing, the PluginType binding will be skipped on create
+dvc api validate-privileges
+
 # Create a new JSON catalog file manually (see structure below)
 # e.g. .cache/customapis/ccsm_NewApi.json
 
@@ -494,6 +555,8 @@ dvc api exec-plan --simulate
 
 # Apply after reviewing
 dvc api exec-plan
+# If the App User lacked prvAppendToPluginType, the createCustomApi result
+# will contain a warning — check the output and link the Plugin manually if needed.
 ```
 
 ### Why validate before plan?
@@ -593,7 +656,7 @@ npm publish --access public
 - npm
 - Access to a Dataverse environment
 - Azure AD / Microsoft Entra ID App Registration with the correct permissions
-- Sufficient Dataverse privileges to read or modify Custom API metadata
+- Sufficient Dataverse privileges to read or modify Custom API metadata — run `dvc api validate-privileges` after connecting to verify which privileges are available
 
 ## License
 
@@ -632,6 +695,8 @@ npm install -g @brunsforge/dataverse-custom-api
   - Sync-Pläne erstellen (Validierung läuft automatisch; Plan wird bei Fehlern blockiert)
   - einzelne Sync-Operationen ausführen
   - vollständige Sync-Pläne ausführen
+  - **Privileges prüfen** — prüft welche Dataverse-Privileges der konfigurierte App-User besitzt und welche Features verfügbar oder eingeschränkt sind
+- **Graceful Privilege-Fallback**: fehlt dem App-User `prvAppendToPluginType`, wird `createCustomApi` automatisch ohne das PluginType-Binding wiederholt und eine `warning` im Sync-Ergebnis eingetragen — statt mit einem Fehler abzubrechen
 - **Simulationsmodus**: Operationen mit `--simulate` vorab prüfen
 - **JSON und menschenlesbare Ausgaben**: alle Befehle unterstützen `--json`
 
@@ -762,6 +827,58 @@ dvc api exec-op -o "<operationId>"
 dvc api check-metadata
 ```
 
+### Dataverse-Privileges prüfen
+
+Prüft welche relevanten Dataverse-Privileges der konfigurierte App-User besitzt und gibt eine strukturierte Übersicht aus. Erfordert eine Netzwerkverbindung.
+
+```bash
+dvc api validate-privileges
+# Alle gefundenen Privilege-IDs anzeigen:
+dvc api validate-privileges --verbose
+# Maschinenlesbare Ausgabe:
+dvc api validate-privileges --json
+```
+
+**Ausgabe:**
+
+```text
+Privilege-Validierung für: orgf707a816.crm16.dynamics.com
+App-User: CCDV Custom API CLI - AppOnly (6dcbb78d-...)
+
+FEATURE                          PRIVILEGE                           STATUS
+──────────────────────────────────────────────────────────────────────────────
+Custom API lesen                 prvReadCustomAPI                    ✓ Verfügbar
+Custom API anlegen               prvCreateCustomAPI                  ✓ Verfügbar
+Custom API bearbeiten            prvWriteCustomAPI                   ✓ Verfügbar
+Custom API löschen               prvDeleteCustomAPI                  ✓ Verfügbar
+PluginType-Binding               prvAppendToPluginType               ✗ Fehlt
+Plugin Steps anlegen             prvCreateSdkMessageProcessingStep   ✗ Fehlt
+
+HINWEISE:
+• PluginType-Binding fehlt: Custom APIs werden ohne Plugin-Verknüpfung erstellt.
+  Vergib 'prvAppendToPluginType' (AppendTo, plugintype, Org-Ebene) an die Sicherheitsrolle.
+• Plugin Steps fehlen: Schrittregistrierungen können nicht automatisch angelegt werden.
+  Vergib 'prvCreateSdkMessageProcessingStep' (Create, sdkmessageprocessingstep, Org-Ebene).
+```
+
+**Geprüfte Privileges:**
+
+| Feature | Privilege | Bekannte ID |
+|---------|-----------|-------------|
+| Custom API lesen | `prvReadCustomAPI` | per API aufgelöst |
+| Custom API anlegen | `prvCreateCustomAPI` | per API aufgelöst |
+| Custom API bearbeiten | `prvWriteCustomAPI` | per API aufgelöst |
+| Custom API löschen | `prvDeleteCustomAPI` | per API aufgelöst |
+| PluginType-Binding bei Create | `prvAppendToPluginType` | `574c053e-6488-4bfb-832a-cbc47aff8b32` |
+| Plugin Steps anlegen | `prvCreateSdkMessageProcessingStep` | per API aufgelöst |
+
+**Graceful Fallback für `prvAppendToPluginType`:**
+
+Fehlt dem App-User `prvAppendToPluginType`, wiederholt die CLI `createCustomApi` automatisch ohne das `PluginTypeId@odata.bind`-Feld. Die Custom API wird erfolgreich angelegt — jedoch ohne Plugin-Verknüpfung. Das Sync-Ergebnis (`exec-op`, `exec-plan`) enthält ein `warning`-Feld mit der Erklärung und den Handlungsoptionen:
+
+- `prvAppendToPluginType` (AppendTo, plugintype, Org-Ebene) der Sicherheitsrolle des App-Users vergeben, oder
+- das Plugin nach der Erstellung manuell im Maker Portal verknüpfen.
+
 ### Lokale Artefakte entfernen
 
 ```bash
@@ -770,6 +887,16 @@ dvc api remove -n ccsm_MyApi
 ```
 
 ## Typischer Workflow
+
+### Verbindung herstellen und Privileges prüfen
+
+```bash
+# Auth-Konfiguration erstellen und Environment verbinden
+dvc connect -u "https://your-org.crm.dynamics.com"
+
+# Optional: Privileges des App-Users prüfen
+dvc api validate-privileges
+```
 
 ### Vorhandene Custom API bearbeiten
 
@@ -801,6 +928,10 @@ dvc api exec-plan
 ### Neue Custom API erstellen
 
 ```bash
+# Optional: Privileges prüfen — fehlt prvAppendToPluginType, wird das
+# PluginType-Binding beim Erstellen automatisch weggelassen (+ Warning im Ergebnis)
+dvc api validate-privileges
+
 # Neue JSON-Katalog-Datei erstellen (siehe Struktur unten)
 # z. B. .cache/customapis/ccsm_NewApi.json
 
@@ -817,6 +948,8 @@ dvc api exec-plan --simulate
 
 # Live ausführen
 dvc api exec-plan
+# Falls prvAppendToPluginType fehlte: das Ergebnis enthält eine warning —
+# Plugin anschließend manuell im Maker Portal verknüpfen.
 ```
 
 ### Warum vor dem Plan validieren?
@@ -876,7 +1009,7 @@ dvc api exec-plan
 - npm
 - Zugriff auf eine Dataverse-Umgebung
 - Korrekte Azure AD / Microsoft Entra ID App Registration
-- Ausreichende Dataverse-Berechtigungen
+- Ausreichende Dataverse-Berechtigungen — nach dem Verbinden mit `dvc api validate-privileges` prüfen, welche Privileges verfügbar sind
 
 ## Lizenz
 

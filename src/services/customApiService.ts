@@ -1213,10 +1213,14 @@ async function executeOperationInternal(
   const localCatalog = await loadLocalCustomApiCatalog(uniqueName, context);
   const localApi = findLocalCustomApi(localCatalog, uniqueName);
 
+  let pendingWarning: string | undefined;
+
   switch (operation.action) {
-    case "createCustomApi":
-      await repository.createCustomApi(localApi);
+    case "createCustomApi": {
+      const r = await repository.createCustomApi(localApi);
+      if (r.warning) pendingWarning = r.warning;
       break;
+    }
     case "updateCustomApi":
       await repository.updateCustomApi(localApi, operation.changedFields);
       break;
@@ -1262,7 +1266,7 @@ async function executeOperationInternal(
   }
 
   const finishedAtUtc = new Date().toISOString();
-  return {
+  const result: CustomApiSyncOperationResult = {
     operationId: operation.operationId,
     action: operation.action,
     objectType: operation.objectType,
@@ -1274,6 +1278,8 @@ async function executeOperationInternal(
     message: `${operation.action} for ${operation.uniqueName} completed successfully.`,
     simulated: false,
   };
+  if (pendingWarning) result.warning = pendingWarning;
+  return result;
 }
 
 export async function executeCustomApiSyncOperation(
@@ -1317,6 +1323,7 @@ export async function executeCustomApiSyncOperation(
     operationState.message = result.message;
     operationState.simulated = result.simulated;
     delete operationState.error;
+    if (result.warning) operationState.warning = result.warning;
 
     markOverallStatus(executionState);
     await writeJsonFile(stateFilePath, executionState);

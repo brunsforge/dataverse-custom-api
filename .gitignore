@@ -10,4 +10,5 @@ auth.interactivebrowser.json
 .env
 .env.*
 *.log
-.claude/settings.local.json
+.claude/*
+.dvc/*

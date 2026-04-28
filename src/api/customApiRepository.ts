@@ -177,6 +177,39 @@ function escapeODataString(value: string): string {
   return value.replace(/'/g, "''");
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getRecordProperty(
+  value: unknown,
+  propertyName: string
+): Record<string, unknown> | undefined {
+  if (!isRecord(value)) return undefined;
+  const v = value[propertyName];
+  return isRecord(v) ? v : undefined;
+}
+
+function getStringProperty(value: unknown, propertyName: string): string | undefined {
+  if (!isRecord(value)) return undefined;
+  const v = value[propertyName];
+  return typeof v === "string" ? v : undefined;
+}
+
+function getNumberProperty(value: unknown, propertyName: string): number | undefined {
+  if (!isRecord(value)) return undefined;
+  const v = value[propertyName];
+  return typeof v === "number" ? v : undefined;
+}
+
+function isPluginTypePrivilegeError(error: unknown): boolean {
+  const response = getRecordProperty(error, "response");
+  if (getNumberProperty(response, "status") !== 403) return false;
+  const message =
+    getStringProperty(getRecordProperty(response?.data, "error"), "message") ?? "";
+  return message.includes("prvAppendToPluginType");
+}
+
 function addIfDefined(
   target: Record<string, unknown>,
   field: string,
@@ -540,9 +573,35 @@ export class CustomApiRepository {
     return mapDefinition(row);
   }
 
-  public async createCustomApi(definition: CustomApiDefinitionModel): Promise<void> {
+  public async createCustomApi(
+    definition: CustomApiDefinitionModel
+  ): Promise<{ warning?: string }> {
     const http = await this.client.createHttpClient();
-    await http.post("/customapis", buildCustomApiPayload(definition));
+
+    if (!definition.pluginTypeId) {
+      await http.post("/customapis", buildCustomApiPayload(definition));
+      return {};
+    }
+
+    try {
+      await http.post("/customapis", buildCustomApiPayload(definition));
+      return {};
+    } catch (error: unknown) {
+      if (isPluginTypePrivilegeError(error)) {
+        const payload = buildCustomApiPayload(definition);
+        delete payload["PluginTypeId@odata.bind"];
+        await http.post("/customapis", payload);
+        return {
+          warning:
+            `Custom API wurde ohne PluginType-Binding erstellt. ` +
+            `Der Service-User fehlt die Privilege 'prvAppendToPluginType' auf der ` +
+            `'plugintype'-Entity (AppendTo, Organisation-Ebene). ` +
+            `Verknüpfe das Plugin '${definition.pluginTypeName ?? definition.pluginTypeId}' ` +
+            `manuell im Maker Portal oder vergib die Privilege der Sicherheitsrolle des App-Users.`,
+        };
+      }
+      throw error;
+    }
   }
 
   public async updateCustomApi(
