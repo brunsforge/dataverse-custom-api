@@ -1402,24 +1402,24 @@ const PRIVILEGE_CHECKS: Array<{
   privilegeId?: string;
   hint?: string;
 }> = [
-  { feature: "Custom API lesen",      privilegeName: "prvReadCustomAPI" },
-  { feature: "Custom API anlegen",    privilegeName: "prvCreateCustomAPI" },
-  { feature: "Custom API bearbeiten", privilegeName: "prvWriteCustomAPI" },
-  { feature: "Custom API löschen",    privilegeName: "prvDeleteCustomAPI" },
+  { feature: "Read Custom API",    privilegeName: "prvReadCustomAPI" },
+  { feature: "Create Custom API",  privilegeName: "prvCreateCustomAPI" },
+  { feature: "Update Custom API",  privilegeName: "prvWriteCustomAPI" },
+  { feature: "Delete Custom API",  privilegeName: "prvDeleteCustomAPI" },
   {
-    feature: "PluginType-Binding",
+    feature: "PluginType Binding",
     privilegeName: "prvAppendToPluginType",
     privilegeId: "574c053e-6488-4bfb-832a-cbc47aff8b32",
     hint:
-      "Custom APIs werden ohne Plugin-Verknüpfung erstellt. " +
-      "Vergib 'prvAppendToPluginType' (AppendTo, plugintype, Org-Ebene) an die Sicherheitsrolle.",
+      "Custom APIs will be created without a plugin type link. " +
+      "Grant 'prvAppendToPluginType' (AppendTo, plugintype, organisation scope) to the app user's security role.",
   },
   {
-    feature: "Plugin Steps anlegen",
+    feature: "Create Plugin Steps",
     privilegeName: "prvCreateSdkMessageProcessingStep",
     hint:
-      "Schrittregistrierungen können nicht automatisch angelegt werden. " +
-      "Vergib 'prvCreateSdkMessageProcessingStep' (Create, sdkmessageprocessingstep, Org-Ebene).",
+      "Plugin step registrations cannot be created automatically. " +
+      "Grant 'prvCreateSdkMessageProcessingStep' (Create, sdkmessageprocessingstep, organisation scope) to the app user's security role.",
   },
 ];
 

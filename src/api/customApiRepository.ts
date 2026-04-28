@@ -593,11 +593,11 @@ export class CustomApiRepository {
         await http.post("/customapis", payload);
         return {
           warning:
-            `Custom API wurde ohne PluginType-Binding erstellt. ` +
-            `Der Service-User fehlt die Privilege 'prvAppendToPluginType' auf der ` +
-            `'plugintype'-Entity (AppendTo, Organisation-Ebene). ` +
-            `Verknüpfe das Plugin '${definition.pluginTypeName ?? definition.pluginTypeId}' ` +
-            `manuell im Maker Portal oder vergib die Privilege der Sicherheitsrolle des App-Users.`,
+            `Custom API created without PluginType binding. ` +
+            `The app user is missing the privilege 'prvAppendToPluginType' on the ` +
+            `'plugintype' entity (AppendTo, organisation scope). ` +
+            `Link the plugin '${definition.pluginTypeName ?? definition.pluginTypeId}' ` +
+            `manually in the Maker Portal, or grant the privilege to the app user's security role.`,
         };
       }
       throw error;
