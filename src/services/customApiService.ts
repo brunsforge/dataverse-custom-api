@@ -1094,8 +1094,8 @@ export async function checkCustomApiMetadataConsistency(
       status: mismatches.length === 0 ? "ok" : "warning",
       message:
         mismatches.length === 0
-          ? "Keine Metadaten-Abweichungen gefunden."
-          : `${mismatches.length} Metadaten-Abweichungen gefunden.`,
+          ? "No metadata mismatches found."
+          : `${mismatches.length} metadata mismatch${mismatches.length !== 1 ? "es" : ""} found.`,
       mismatches,
     };
   } catch (error) {
